@@ -5443,6 +5443,8 @@ function loadSound (src, done) {
     // }/*, onError*/);
   }
 
+  alert(1);
+
   request.send();
 }
 
