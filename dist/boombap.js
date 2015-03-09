@@ -5402,8 +5402,7 @@ function hasOwnProperty(obj, prop) {
 var Dilla = require('dilla');
 var audioContext = new AudioContext();
 var dilla = new Dilla(audioContext, {
-  'tempo': 88,
-  'loopLength': 1
+  'tempo': 88
 });
 
 // Display playback position
@@ -5449,14 +5448,15 @@ dilla.set('kick', [
   ['1.1.51'],
   ['1.2.88'],
   ['2.1.01'],
-  ['2.3.01']
+  ['2.3.51'],
+  ['2.3.88']
 ]);
 
 dilla.set('snare', [
   ['1.1.94'],
   ['1.3.94'],
   ['2.1.94'],
-  ['2.3.94']
+  ['2.4.03']
 ]);
 
 dilla.set('hihat', [
@@ -5467,15 +5467,15 @@ dilla.set('hihat', [
   ['1.3.01'],
   // ['1.3.49'],
   ['1.4.01'],
-  ['1.4.52'],
+  ['1.4.53'],
   ['2.1.01'],
-  ['2.1.49'],
+  // ['2.1.49'],
   ['2.2.01'],
-  ['2.2.49'],
+  // ['2.2.49'],
   ['2.3.01'],
-  ['2.3.49'],
+  // ['2.3.49'],
   ['2.4.01'],
-  ['2.4.49']
+  ['2.4.53']
 ]);
 
 dilla.on('step', playSound);
