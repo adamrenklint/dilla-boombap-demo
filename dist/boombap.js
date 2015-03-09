@@ -44,6 +44,10 @@ function updatePositionFromClock (step) {
 function getPositionFromTime (time) {
   var offset = (this.clock._state.cycleLength * this.clock._state.preCycle) * 1;
   var position = this.clock.getPositionAt(time - offset);
+  return this.getPositionFromClockPosition(position);
+}
+
+function getPositionFromClockPosition (position) {
   if (position < 0) return '0.0.00';
   var beatsPerLoop = this.loopLength * this.beatsPerBar;
   var loops = Math.floor(position / beatsPerLoop) || 0;
@@ -62,7 +66,13 @@ function getClockPositionFromPosition (position) {
   var bars = parseInt(parts[0], 10) - 1;
   var beats = parseInt(parts[1], 10) - 1;
   var ticks = parseInt(parts[2], 10) - 1;
-  return (bars * this.beatsPerBar) + beats + (ticks / 96 * 100);
+  return (bars * this.beatsPerBar) + beats + (ticks / 96);
+}
+
+function getPositionWithOffset (position, offset) {
+  var clockPosition = this.getClockPositionFromPosition(position);
+  var clockOffset = offset / 96;
+  return this.getPositionFromClockPosition(clockPosition + clockOffset);
 }
 
 function getDurationFromTicks (ticks) {
@@ -73,7 +83,7 @@ function emitStep (step) {
   var offset = step.offset = (this.clock._state.cycleLength * this.clock._state.preCycle) * 1;
   step.time = step.time + offset;
   step.clockPosition = step.position;
-  step.position = this.getPositionFromTime(step.time);
+  step.position = step.event === 'start' ? step.args[0] : this.getPositionWithOffset(step.args[0], step.args[1]);
   step.context = this.context;
   this.emit('step', step);
 }
@@ -163,7 +173,7 @@ function setLoopLength (bars) {
 }
 
 var proto = Dilla.prototype;
-[set, get, clear, start, stop, pause, getPositionFromTime, setTempo, setPosition, getClockPositionFromPosition, getDurationFromTicks, setBeatsPerBar, setLoopLength, channels, position].forEach(function (fn) {
+[set, get, clear, start, stop, pause, getPositionFromTime, getPositionFromClockPosition, setTempo, setPosition, getClockPositionFromPosition, getDurationFromTicks, getPositionWithOffset, setBeatsPerBar, setLoopLength, channels, position].forEach(function (fn) {
   proto[fn.name] = fn;
 });
 
@@ -5388,68 +5398,102 @@ function hasOwnProperty(obj, prop) {
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./support/isBuffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/support/isBufferBrowser.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/src/boombap.js":[function(require,module,exports){
+// Set up the dilla object
 var Dilla = require('dilla');
 var audioContext = new AudioContext();
-var dilla = new Dilla(audioContext);
+var dilla = new Dilla(audioContext, {
+  'tempo': 88
+});
 
-var duration = 15;
-dilla.set('metronome', [
-  ['1.1.01', duration, 440],
-  ['1.2.01', duration, 330],
-  ['1.3.01', duration, 330],
-  ['1.4.01', duration, 330],
-  ['2.1.01', duration, 440],
-  ['2.2.01', duration, 330],
-  ['2.3.01', duration, 330],
-  ['2.4.01', duration, 330]
-]);
-
-var positionEl = document.getElementById('position');
+// Display playback position
+var position = document.getElementById('position');
 function draw () {
-  positionEl.innerText = dilla.position();
+  position.innerText = dilla.position();
   window.requestAnimationFrame(draw);
 }
 draw();
 
-var oscillator, gainNode;
-
-dilla.on('step', function (step) {
-  if (step.event === 'start') {
-    oscillator = step.context.createOscillator();
-    gainNode = step.context.createGain();
-    oscillator.connect(gainNode);
-    gainNode.connect(step.context.destination);
-    oscillator.frequency.value = step.args[2];
-    gainNode.gain.setValueAtTime(1, step.time);
-    oscillator.start(step.time);
-  }
-  else if (step.event === 'stop' && oscillator) {
-    gainNode.gain.setValueAtTime(1, step.time);
-    gainNode.gain.linearRampToValueAtTime(0, step.time + 0.1);
-    oscillator = null;
-    gainNode = null;
-  }
-});
-
-function loadSound (src, done) {
+var sounds = {};
+function loadSound (name, done) {
   var request = new XMLHttpRequest();
-  request.open('GET', src, true);
+  request.open('GET', 'sounds/' + name + '.wav', true);
   request.responseType = 'arraybuffer';
-
   request.onload = function soundWasLoaded () {
-    // self.context.decodeAudioData(request.response, function (buffer) {
-    //   self.buffer = buffer;
-    //   self.duration = buffer.duration;
-      done(request.response);
-    // }/*, onError*/);
+    audioContext.decodeAudioData(request.response, function (buffer) {
+      sounds[name] = buffer;
+      done();
+    });
   }
 
   request.send();
 }
 
-loadSound('sounds/kick.wav', function (f) {
-  console.log(f);
-});
+var soundNames = ['kick', 'snare', 'hihat'];
 
-dilla.start();
+function loadNextSound () {
+  var soundName = soundNames.shift();
+  if (!soundName) return start();
+  loadSound(soundName, loadNextSound);
+}
+
+loadNextSound();
+
+
+function start () {
+  dilla.start();
+}
+
+dilla.set('kick', [
+  ['1.1.01'],
+  ['1.1.49'],
+  ['1.3.01'],
+  ['2.1.01'],
+  ['2.3.01']
+]);
+
+dilla.set('snare', [
+  ['1.2.01'],
+  ['1.4.01'],
+  ['2.2.01'],
+  ['2.4.01']
+]);
+
+dilla.set('hihat', [
+  ['1.1.01'],
+  ['1.1.49'],
+  ['1.2.01'],
+  ['1.2.49'],
+  ['1.3.01'],
+  ['1.3.49'],
+  ['1.4.01'],
+  ['1.4.49'],
+  ['2.1.01'],
+  ['2.1.49'],
+  ['2.2.01'],
+  ['2.2.49'],
+  ['2.3.01'],
+  ['2.3.49'],
+  ['2.4.01'],
+  ['2.4.49']
+]);
+
+dilla.on('step', playSound);
+
+function playSound (step) {
+  
+  if (step.event === 'start') {
+    var source = audioContext.createBufferSource();
+    source.buffer = sounds[step.id];
+    // var gainNode = this.context.createGain();
+    // var gain = this.gain;
+    // if (note.gain) gain = gain * note.gain;
+    // gainNode.gain.value = gain;
+    // source.connect(gainNode);
+    // gainNode.connect(this.destination);
+    source.connect(audioContext.destination);
+    // self.playingNote = note;  
+    
+    source.start(step.time);
+  }
+}
 },{"dilla":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/index.js"}]},{},["/Users/adamrenklint/Projects/dilla-boombap-tutorial/src/boombap.js"]);

@@ -13,7 +13,7 @@
   "devDependencies": {
     "3w": "0.0.4",
     "browserify": "^9.0.3",
-    "dilla": "^1.0.0",
+    "dilla": "^1.0.1",
     "watchify": "^2.4.0"
   }
 }
