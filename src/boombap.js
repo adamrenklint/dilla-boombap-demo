@@ -14,8 +14,9 @@ dilla.set('metronome', [
   ['2.4.01', duration, 330]
 ]);
 
+var positionEl = document.getElementById('position');
 function draw () {
-  document.body.innerText = dilla.position();
+  positionEl.innerText = dilla.position();
   window.requestAnimationFrame(draw);
 }
 draw();
