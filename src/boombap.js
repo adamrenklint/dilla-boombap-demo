@@ -37,18 +37,64 @@ var soundNames = [
 
 function loadNextSound () {
   var soundName = soundNames.shift();
-  if (!soundName) return start();
+  if (!soundName) return dilla.start();
   loadSound(soundName, loadNextSound);
 }
 
-function start () {
-  dilla.start();
+dilla.on('step', playSound);
+
+// master compressor
+var compressor = audioContext.createDynamicsCompressor();
+compressor.threshold.value = -15;
+compressor.knee.value = 30;
+compressor.ratio.value = 12;
+compressor.reduction.value = -20;
+compressor.attack.value = 0;
+compressor.release.value = 0.25;
+
+// master reverb
+var Reverb = require('soundbank-reverb')
+var reverb = Reverb(audioContext)
+reverb.time = 1;
+reverb.wet.value = 0.1;
+reverb.dry.value = 1;
+reverb.filterType = 'highpass'
+reverb.cutoff.value = 1000 //Hz 
+reverb.connect(audioContext.destination);
+
+compressor.connect(reverb);
+
+var sources = {};
+
+function playSound (step) {
+  
+  if (step.event === 'start') {
+    var source = audioContext.createBufferSource();
+    source.buffer = sounds[step.id];
+    source.playbackRate.value = step.args[3] || 1;
+    
+    var gainNode = audioContext.createGain();
+    gainNode.gain.value = step.args[2] || 1;
+    source.connect(gainNode);
+    gainNode.connect(compressor);
+    
+    source.start(step.time);
+    sources[step.id + step.args[0]] = source;
+  }
+  else if (step.event === 'stop') {
+    var source = sources[step.id + step.args[0]];
+    if (source) {
+      sources[step.id + step.args[0]] = null;
+      source.stop(step.time);
+    }
+  }
 }
 
 dilla.set('kick', [
   ['1.1.01'],
   ['1.1.51', null, 0.8],
   ['1.2.88'],
+  ['1.3.75'],
   ['1.4.72', null, 0.7],
   ['2.1.51', null, 0.7],
   ['2.3.51', null, 0.8],
@@ -76,71 +122,36 @@ dilla.set('hihat', [
 ]);
 
 dilla.set('sound1', [
-  ['1.3.25', 88, 0.6]
+  ['1.3.75', 96, 0.6],
+  ['2.3.25', 70, 0.6],
+  ['2.4.01', 85, 0.3]
 ]);
 
 dilla.set('sound2', [
-  ['1.2.50', 70, 0.6]
+  ['2.2.50', 70, 0.6]
 ]);
 
 dilla.set('sound4', [
-  ['1.2.05', 45, 0.6]
+  ['2.2.05', 45, 0.6],
+  ['1.2.05', 45, 0.6],
+  ['1.2.51', 45, 0.4],
+  ['1.3.05', 45, 0.2],
+  ['1.3.51', 45, 0.05]
 ]);
 
 dilla.set('plong1', [
-  ['1.1.01', 95],
-  ['1.4.72', 24, 0.5],
-  ['2.3.25', 24, 0.5]
+  ['1.1.01', 95]
 ]);
 
 dilla.set('plong2', [
-  ['2.1.01', 95, 0.6],
-  ['2.1.48', 150, 0.8],
-  ['2.3.48', 150]
+  ['2.1.01', 96, 0.6]
 ]);
 
-dilla.set('bass', [
-  ['1.1.01', 95, 1, 0.5],
-  ['2.1.01', 40, 0.6, 0.75],
-  ['2.1.48', 40, 0.6, 0.75],
-  ['2.3.48', 96, 0.6, 0.75]
-]);
-
-dilla.on('step', playSound);
-
-var compressor = audioContext.createDynamicsCompressor();
-compressor.threshold.value = -15;
-compressor.knee.value = 30;
-compressor.ratio.value = 12;
-compressor.reduction.value = -20;
-compressor.attack.value = 0;
-compressor.release.value = 0.25;
-compressor.connect(audioContext.destination);
-
-var sources = {};
-
-function playSound (step) {
-  
-  if (step.event === 'start') {
-    var source = audioContext.createBufferSource();
-    source.buffer = sounds[step.id];
-    source.playbackRate.value = step.args[3] || 1;
-    
-    var gainNode = audioContext.createGain();
-    gainNode.gain.value = step.args[2] || 1;
-    source.connect(gainNode);
-    gainNode.connect(compressor);
-    
-    source.start(step.time);
-    sources[step.id + step.args[0]] = source;
-  }
-  else if (step.event === 'stop') {
-    var source = sources[step.id + step.args[0]];
-    if (source) {
-      sources[step.id + step.args[0]] = null;
-      source.stop(step.time);
-    }
-  }
-}
+// dilla.set('bass', [
+//   ['1.1.01', 93, 1, 0.5],
+//   ['2.1.01', 40, 0.6, 0.75],
+//   ['2.1.48', 40, 0.6, 0.75],
+//   ['2.3.48', 93, 0.6, 0.5]
+// ]);
 
 loadNextSound();
