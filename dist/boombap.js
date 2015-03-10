@@ -1,6 +1,583 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/index.js":[function(require,module,exports){
+var events = require('events');
+var inherits = require('util').inherits
+var bopper = require('bopper');
+var ditty = require('ditty');
 
-},{}],2:[function(require,module,exports){
+var loadTime = new Date().valueOf();
+
+function Dilla (audioContext, options) {
+
+  if (!(this instanceof Dilla)){
+    return new Dilla(audioContext, options);
+  }
+
+  events.EventEmitter.call(this);
+
+  options = options || {};
+
+  this.upstartWait = options.upstartWait || 250;
+  this.tempo = options.tempo || 120;
+  this.beatsPerBar = options.beatsPerBar || 4;
+  this.loopLength = options.loopLength || 2;
+  this._position = '0.0.00';
+  
+  this.context = audioContext;
+  this.clock = bopper(this.context);
+  this.scheduler = ditty();
+
+  this.clock.setTempo(this.tempo);
+  this.clock.on('data', updatePositionFromClock.bind(this));
+  this.clock.pipe(this.scheduler).on('data', emitStep.bind(this));
+}
+
+inherits(Dilla, events.EventEmitter);
+
+function updatePositionFromClock (step) {
+  var position = this.getPositionFromTime(step.time);
+  if (this._position !== position) {
+    this._position = position;
+    this.emit('tick', { 'position': this._position, 'context': this.context });
+  }
+}
+
+function getPositionFromTime (time) {
+  var offset = (this.clock._state.cycleLength * this.clock._state.preCycle) * 1;
+  var position = this.clock.getPositionAt(time - offset);
+  return this.getPositionFromClockPosition(position);
+}
+
+function getPositionFromClockPosition (position) {
+  if (position < 0) return '0.0.00';
+  var beatsPerLoop = this.loopLength * this.beatsPerBar;
+  var loops = Math.floor(position / beatsPerLoop) || 0;
+  position = position - (loops * beatsPerLoop);
+  var bars = Math.floor(position / this.beatsPerBar);
+  position = position - (bars * this.beatsPerBar);
+  var beats = Math.floor(position);
+  position = position - beats;
+  var ticks = Math.floor(position * 96) + 1;
+  if (ticks < 10) ticks = '0' + ticks;
+  return ++bars + '.' + ++beats + '.' + ticks;
+}
+
+function getClockPositionFromPosition (position) {
+  var parts = position.split('.');
+  var bars = parseInt(parts[0], 10) - 1;
+  var beats = parseInt(parts[1], 10) - 1;
+  var ticks = parseInt(parts[2], 10) - 1;
+  return (bars * this.beatsPerBar) + beats + (ticks / 96);
+}
+
+function getPositionWithOffset (position, offset) {
+  var clockPosition = this.getClockPositionFromPosition(position);
+  var clockOffset = offset / 96;
+  return this.getPositionFromClockPosition(clockPosition + clockOffset);
+}
+
+function getDurationFromTicks (ticks) {
+  return (1 / 96) * ticks;
+}
+
+function emitStep (step) {
+  var offset = step.offset = (this.clock._state.cycleLength * this.clock._state.preCycle) * 1;
+  step.time = step.time + offset;
+  step.clockPosition = step.position;
+  step.position = step.event === 'start' ? step.args[0] : this.getPositionWithOffset(step.args[0], step.args[1]);
+  step.context = this.context;
+  this.emit('step', step);
+}
+
+function set (id, events) {
+  var self = this;
+  events = events.filter(function (event) {
+    var parts = event[0].split('.');
+    var bars = parseInt(parts[0], 10) - 1;
+    var beats = parseInt(parts[1], 10) - 1;
+    var ticks = parseInt(parts[2], 10) - 1;
+    if (ticks >= 96 || beats >= self.beatsPerBar || bars >= self.loopLength) {
+      console.warn('Event is out of bounds: ' + event[0], event);
+      return false; 
+    }
+    return true;
+  }).map(function (event) {
+    return [self.getClockPositionFromPosition(event[0]), self.getDurationFromTicks(event[1]), null, null, event[0], event[1]].concat(event.slice(2));
+  });
+  this.scheduler.set(id, events, this.beatsPerBar * this.loopLength);
+}
+
+function get (id) {
+  return this.scheduler.get(id);
+}
+
+function channels () {
+  return this.scheduler.getIds();
+}
+
+function clear (id) {
+  var self = this;
+  if (id) {
+    this.set(id, []);
+  }
+  else {
+    this.scheduler.getIds().forEach(function (id) {
+      self.clear(id);
+    });
+  }
+}
+
+function start () {
+  var now = new Date().valueOf();
+  var waited = now - loadTime;
+  if (waited < this.upstartWait) {
+    return setTimeout(start.bind(this), this.upstartWait - waited);
+  }
+
+  if (!this.clock._state.playing) {
+    this.clock.start();
+  }
+}
+
+function pause () {
+  if (this.clock._state.playing) {
+    this.clock.stop();
+  }
+}
+
+function stop () {
+  if (this.clock._state.playing) {
+    this.clock.stop();
+    this.clock.setPosition(0);
+    this._position = '0.0.00';
+  }
+}
+
+function position () {
+  return this._position;
+}
+
+function setPosition (position) {
+  this.clock.setPosition(this.getClockPositionFromPosition(position));
+}
+
+function setTempo (tempo) {
+  this.clock.setTempo(tempo);
+}
+
+function setBeatsPerBar (beats) {
+  this.beatsPerBar = beats;
+}
+
+function setLoopLength (bars) {
+  this.loopLength = bars;
+}
+
+var proto = Dilla.prototype;
+[set, get, clear, start, stop, pause, getPositionFromTime, getPositionFromClockPosition, setTempo, setPosition, getClockPositionFromPosition, getDurationFromTicks, getPositionWithOffset, setBeatsPerBar, setLoopLength, channels, position].forEach(function (fn) {
+  proto[fn.name] = fn;
+});
+
+module.exports = Dilla;
+},{"bopper":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/index.js","ditty":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/ditty/index.js","events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/events/events.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/index.js":[function(require,module,exports){
+var Stream = require('stream')
+var Event = require('geval')
+
+var inherits = require('util').inherits
+
+module.exports = Bopper
+
+function Bopper(audioContext){
+  if (!(this instanceof Bopper)){
+    return new Bopper(audioContext)
+  }
+
+  var self = this
+
+  Stream.call(this)
+  this.readable = true
+  this.writable = false
+
+  this.context = audioContext
+  var processor = this._processor = audioContext.createScriptProcessor(512, 1, 1)
+
+  var handleTick = bopperTick.bind(this)
+  this._processor.onaudioprocess = handleTick
+
+  var tempo = 120
+  var cycleLength = (1 / audioContext.sampleRate) * this._processor.bufferSize
+
+  this._state = {
+    lastTo: 0,
+    lastEndTime: 0,
+    playing: false,
+    bpm: tempo,
+    beatDuration: 60 / tempo,
+    increment: (tempo / 60) * cycleLength,
+    cycleLength: cycleLength,
+    preCycle: 5,
+  }
+
+  // frp version
+  this.onSchedule = Event(function(broadcast){
+    self.on('data', broadcast)
+  })
+
+  processor.connect(audioContext.destination)
+}
+
+inherits(Bopper, Stream)
+
+var proto = Bopper.prototype
+
+
+proto.start = function(){
+  this._state.playing = true
+  this.emit('start')
+}
+
+proto.stop = function(){
+  this._state.playing = false
+  this.emit('stop')
+}
+
+proto.setTempo = function(tempo){
+  var bps = tempo/60
+  var state = this._state
+  state.beatDuration = 60/tempo
+  state.increment = bps * state.cycleLength
+  state.bpm = tempo
+  this.emit('tempo', state.bpm)
+}
+
+proto.getTempo = function(){
+  return this._state.bpm
+}
+
+proto.isPlaying = function(){
+  return this._state.playing
+}
+
+proto.setPosition = function(position){
+  this._state.lastTo = parseFloat(position)
+}
+
+proto.setSpeed = function(multiplier){
+  var state = this._state
+
+  multiplier = parseFloat(multiplier) || 0
+
+  var tempo = state.bpm * multiplier
+  var bps = tempo/60
+
+  state.beatDuration = 60/tempo
+  state.increment = bps * state.cycleLength
+}
+
+
+proto.getPositionAt = function(time){
+  var state = this._state
+  var delta = state.lastEndTime - time
+  return state.lastTo - (delta / state.beatDuration)
+}
+
+proto.getTimeAt = function(position){
+  var state = this._state
+  var positionOffset = this.getCurrentPosition() - position
+  return this.context.currentTime - (positionOffset * state.beatDuration)
+}
+
+proto.getCurrentPosition = function(){
+  return this.getPositionAt(this.context.currentTime)
+}
+
+proto.getNextScheduleTime = function(){
+  var state = this._state
+  return state.lastEndTime
+}
+
+proto.getBeatDuration = function(){
+  var state = this._state
+  return state.beatDuration
+}
+
+
+proto._schedule = function(time, from, to){
+  var state = this._state
+  var duration = (to - from) * state.beatDuration
+  this.emit('data', {
+    from: from,
+    to: to,
+    time: time,
+    duration: duration,
+    beatDuration: state.beatDuration
+  })
+}
+
+function bopperTick(e){
+  var state = this._state
+  var currentTime = this.context.currentTime
+
+  var endTime = this.context.currentTime + (state.cycleLength * state.preCycle)
+  var time = state.lastEndTime
+  state.lastEndTime = endTime
+
+  if (state.playing){
+    var duration = endTime - time
+    var length = duration / state.beatDuration
+
+    var from = state.lastTo
+    var to = from + length
+    state.lastTo = to
+
+    // skip if getting behind
+    if ((currentTime - (state.cycleLength*2)) < time){
+      this._schedule(time, from, to)
+    }
+  }
+
+}
+},{"geval":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/source.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/event.js":[function(require,module,exports){
+module.exports = Event
+
+function Event() {
+    var listeners = []
+
+    return { broadcast: broadcast, listen: event }
+
+    function broadcast(value) {
+        for (var i = 0; i < listeners.length; i++) {
+            listeners[i](value)
+        }
+    }
+
+    function event(listener) {
+        listeners.push(listener)
+
+        return removeListener
+
+        function removeListener() {
+            var index = listeners.indexOf(listener)
+            if (index !== -1) {
+                listeners.splice(index, 1)
+            }
+        }
+    }
+}
+
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/source.js":[function(require,module,exports){
+var Event = require('./event.js')
+
+module.exports = Source
+
+function Source(broadcaster) {
+    var tuple = Event()
+
+    broadcaster(tuple.broadcast)
+
+    return tuple.listen
+}
+
+},{"./event.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/event.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/ditty/index.js":[function(require,module,exports){
+module.exports = Ditty
+
+var Stream = require('stream')
+var inherits = require('util').inherits
+
+function Ditty(){
+
+  if (!(this instanceof Ditty)){
+    return new Ditty()
+  }
+
+  Stream.call(this)
+
+  this.readable = true
+  this.writable = true
+
+  this._state = {
+    loops: {},
+    lengths: {},
+    ids: [],
+    queue: []
+  }
+}
+
+inherits(Ditty, Stream)
+
+var proto = Ditty.prototype
+
+proto.set = function(id, events, length){
+  var state = this._state
+  if (events){
+    if (!state.loops[id]){
+      state.ids.push(id)
+    }
+    state.loops[id] = events
+    state.lengths[id] = length || 8
+  } else {
+    var index = state.ids.indexOf(id)
+    if (~index){
+      state.ids.splice(index, 1)
+    }
+    state.loops[id] = null
+  }
+
+  if (state.loops[id]){
+    this.emit('change', {
+      id: id,
+      events: state.loops[id],
+      length: state.lengths[id]
+    })
+  } else {
+    this.emit('change', {
+      id: id
+    })
+  }
+}
+
+proto.get = function(id){
+  return this._state.loops[id]
+}
+
+proto.getLength = function(id){
+  return this._state.lengths[id]
+}
+
+proto.getIds = function(){
+  return this._state.ids
+}
+
+proto.getDescriptors = function(){
+  var state = this._state
+  var result = []
+  for (var i=0;i<state.ids.length;i++){
+    var id = state.ids[i]
+    if (state.loops[id]){
+      result.push({
+        id: id, 
+        length: state.lengths[id], 
+        events: state.loops[id]
+      })
+    }
+  }
+  return result
+}
+
+proto.update = function(descriptor){
+  this.set(descriptor.id, descriptor.events, descriptor.length)
+}
+
+proto.push = function(data){
+  this.emit('data', data)
+}
+
+proto.write = function(obj){
+  this._transform(obj)
+}
+
+proto._transform = function(obj){
+  var begin = window.performance.now()
+  var endAt = begin + (obj.duration * 900)
+
+  var state = this._state
+  var from = obj.from
+  var to = obj.to
+  var time = obj.time
+  var nextTime = obj.time + obj.duration
+  var beatDuration = obj.beatDuration
+  var ids = state.ids
+  var queue = state.queue
+  var localQueue = []
+
+  for (var i=queue.length-1;i>=0;i--){
+    var item = queue[i]
+    if (to > item.position || shouldSendImmediately(item, state.loops[item.id])){
+      if (to > item.position){
+        var delta = (item.position - from) * beatDuration
+        item.time = time + delta
+      } else {
+        item.time = time
+        item.position = from
+      }
+      queue.splice(i, 1)
+      this.push(item)
+    }
+  }
+
+  for (var i=0;i<ids.length;i++){
+
+    var id = ids[i]
+    var events = state.loops[id]
+    var loopLength = state.lengths[id]
+
+    for (var j=0;j<events.length;j++){
+
+      var event = events[j]
+      var startPosition = getAbsolutePosition(event[0], from, loopLength)
+      var endPosition = startPosition + event[1]
+
+      if (startPosition >= from && startPosition < to){
+
+        var delta = (startPosition - from) * beatDuration
+        var duration = event[1] * beatDuration
+        var startTime = time + delta
+        var endTime = startTime + duration
+        
+        localQueue.push({
+          id: id,
+          event: 'start',
+          position: startPosition,
+          args: event.slice(4),
+          time: startTime
+        })
+
+        localQueue.push({
+          id: id,
+          event: 'stop',
+          position: endPosition,
+          args: event.slice(4),
+          time: endTime
+        })
+      }
+    }
+  }
+
+  // ensure events stream in time sequence
+  localQueue.sort(compare)
+  for (var i=0;i<localQueue.length;i++){
+    var item = localQueue[i]
+    if (item.time < nextTime){
+      if (window.performance.now() < endAt){
+        this.push(item)
+      }
+    } else {
+      // queue event for later
+      queue.push(item)
+    }
+  }
+}
+
+function compare(a,b){
+  return a.time-b.time
+}
+
+function getAbsolutePosition(pos, start, length){
+  pos = pos % length
+  var micro = start % length
+  var position = start+pos-micro
+  if (position < start){
+    return position + length
+  } else {
+    return position
+  }
+}
+
+function shouldSendImmediately(message, loop){
+  return message.event === 'stop' && (!loop || !loop.length)
+}
+},{"stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/browser-resolve/empty.js":[function(require,module,exports){
+
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/index.js":[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -1312,7 +1889,7 @@ function decodeUtf8Char (str) {
   }
 }
 
-},{"base64-js":3,"ieee754":4,"is-array":5}],3:[function(require,module,exports){
+},{"base64-js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js","ieee754":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js","is-array":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/is-array/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js":[function(require,module,exports){
 var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 ;(function (exports) {
@@ -1438,7 +2015,7 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	exports.fromByteArray = uint8ToBase64
 }(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
 
-},{}],4:[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js":[function(require,module,exports){
 exports.read = function(buffer, offset, isLE, mLen, nBytes) {
   var e, m,
       eLen = nBytes * 8 - mLen - 1,
@@ -1524,7 +2101,7 @@ exports.write = function(buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-},{}],5:[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/is-array/index.js":[function(require,module,exports){
 
 /**
  * isArray
@@ -1559,7 +2136,7 @@ module.exports = isArray || function (val) {
   return !! val && '[object Array]' == str.call(val);
 };
 
-},{}],6:[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/events/events.js":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -1862,7 +2439,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],7:[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js":[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1887,12 +2464,12 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],8:[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/isarray/index.js":[function(require,module,exports){
 module.exports = Array.isArray || function (arr) {
   return Object.prototype.toString.call(arr) == '[object Array]';
 };
 
-},{}],9:[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js":[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1952,10 +2529,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],10:[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/duplex.js":[function(require,module,exports){
 module.exports = require("./lib/_stream_duplex.js")
 
-},{"./lib/_stream_duplex.js":11}],11:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js":[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2048,7 +2625,7 @@ function forEach (xs, f) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_readable":13,"./_stream_writable":15,"_process":9,"core-util-is":16,"inherits":7}],12:[function(require,module,exports){
+},{"./_stream_readable":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js","./_stream_writable":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2096,7 +2673,7 @@ PassThrough.prototype._transform = function(chunk, encoding, cb) {
   cb(null, chunk);
 };
 
-},{"./_stream_transform":14,"core-util-is":16,"inherits":7}],13:[function(require,module,exports){
+},{"./_stream_transform":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js":[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3051,7 +3628,7 @@ function indexOf (xs, x) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_duplex":11,"_process":9,"buffer":2,"core-util-is":16,"events":6,"inherits":7,"isarray":8,"stream":21,"string_decoder/":22,"util":1}],14:[function(require,module,exports){
+},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js","buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/index.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/events/events.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js","isarray":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/isarray/index.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js","string_decoder/":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/string_decoder/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/browser-resolve/empty.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3262,7 +3839,7 @@ function done(stream, er) {
   return stream.push(null);
 }
 
-},{"./_stream_duplex":11,"core-util-is":16,"inherits":7}],15:[function(require,module,exports){
+},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js":[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3743,7 +4320,7 @@ function endWritable(stream, state, cb) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_duplex":11,"_process":9,"buffer":2,"core-util-is":16,"inherits":7,"stream":21}],16:[function(require,module,exports){
+},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js","buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/index.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js":[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3853,10 +4430,10 @@ function objectToString(o) {
   return Object.prototype.toString.call(o);
 }
 }).call(this,require("buffer").Buffer)
-},{"buffer":2}],17:[function(require,module,exports){
+},{"buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/passthrough.js":[function(require,module,exports){
 module.exports = require("./lib/_stream_passthrough.js")
 
-},{"./lib/_stream_passthrough.js":12}],18:[function(require,module,exports){
+},{"./lib/_stream_passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/readable.js":[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = require('stream');
 exports.Readable = exports;
@@ -3865,13 +4442,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":11,"./lib/_stream_passthrough.js":12,"./lib/_stream_readable.js":13,"./lib/_stream_transform.js":14,"./lib/_stream_writable.js":15,"stream":21}],19:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","./lib/_stream_passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js","./lib/_stream_readable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js","./lib/_stream_transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js","./lib/_stream_writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/transform.js":[function(require,module,exports){
 module.exports = require("./lib/_stream_transform.js")
 
-},{"./lib/_stream_transform.js":14}],20:[function(require,module,exports){
+},{"./lib/_stream_transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/writable.js":[function(require,module,exports){
 module.exports = require("./lib/_stream_writable.js")
 
-},{"./lib/_stream_writable.js":15}],21:[function(require,module,exports){
+},{"./lib/_stream_writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4000,7 +4577,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":6,"inherits":7,"readable-stream/duplex.js":10,"readable-stream/passthrough.js":17,"readable-stream/readable.js":18,"readable-stream/transform.js":19,"readable-stream/writable.js":20}],22:[function(require,module,exports){
+},{"events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/events/events.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js","readable-stream/duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/duplex.js","readable-stream/passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/passthrough.js","readable-stream/readable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/readable.js","readable-stream/transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/transform.js","readable-stream/writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/writable.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/string_decoder/index.js":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4223,14 +4800,14 @@ function base64DetectIncompleteChar(buffer) {
   this.charLength = this.charReceived ? 3 : 0;
 }
 
-},{"buffer":2}],23:[function(require,module,exports){
+},{"buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/support/isBufferBrowser.js":[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],24:[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/util.js":[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -4820,584 +5397,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":23,"_process":9,"inherits":7}],25:[function(require,module,exports){
-var events = require('events');
-var inherits = require('util').inherits
-var bopper = require('bopper');
-var ditty = require('ditty');
-
-var loadTime = new Date().valueOf();
-
-function Dilla (audioContext, options) {
-
-  if (!(this instanceof Dilla)){
-    return new Dilla(audioContext, options);
-  }
-
-  events.EventEmitter.call(this);
-
-  options = options || {};
-
-  this.upstartWait = options.upstartWait || 250;
-  this.tempo = options.tempo || 120;
-  this.beatsPerBar = options.beatsPerBar || 4;
-  this.loopLength = options.loopLength || 2;
-  this._position = '0.0.00';
-  
-  this.context = audioContext;
-  this.clock = bopper(this.context);
-  this.scheduler = ditty();
-
-  this.clock.setTempo(this.tempo);
-  this.clock.on('data', updatePositionFromClock.bind(this));
-  this.clock.pipe(this.scheduler).on('data', emitStep.bind(this));
-}
-
-inherits(Dilla, events.EventEmitter);
-
-function updatePositionFromClock (step) {
-  var position = this.getPositionFromTime(step.time);
-  if (this._position !== position) {
-    this._position = position;
-    this.emit('tick', { 'position': this._position, 'context': this.context });
-  }
-}
-
-function getPositionFromTime (time) {
-  var offset = (this.clock._state.cycleLength * this.clock._state.preCycle) * 1;
-  var position = this.clock.getPositionAt(time - offset);
-  return this.getPositionFromClockPosition(position);
-}
-
-function getPositionFromClockPosition (position) {
-  if (position < 0) return '0.0.00';
-  var beatsPerLoop = this.loopLength * this.beatsPerBar;
-  var loops = Math.floor(position / beatsPerLoop) || 0;
-  position = position - (loops * beatsPerLoop);
-  var bars = Math.floor(position / this.beatsPerBar);
-  position = position - (bars * this.beatsPerBar);
-  var beats = Math.floor(position);
-  position = position - beats;
-  var ticks = Math.floor(position * 96) + 1;
-  if (ticks < 10) ticks = '0' + ticks;
-  return ++bars + '.' + ++beats + '.' + ticks;
-}
-
-function getClockPositionFromPosition (position) {
-  var parts = position.split('.');
-  var bars = parseInt(parts[0], 10) - 1;
-  var beats = parseInt(parts[1], 10) - 1;
-  var ticks = parseInt(parts[2], 10) - 1;
-  return (bars * this.beatsPerBar) + beats + (ticks / 96);
-}
-
-function getPositionWithOffset (position, offset) {
-  var clockPosition = this.getClockPositionFromPosition(position);
-  var clockOffset = offset / 96;
-  return this.getPositionFromClockPosition(clockPosition + clockOffset);
-}
-
-function getDurationFromTicks (ticks) {
-  return (1 / 96) * ticks;
-}
-
-function emitStep (step) {
-  var offset = step.offset = (this.clock._state.cycleLength * this.clock._state.preCycle) * 1;
-  step.time = step.time + offset;
-  step.clockPosition = step.position;
-  step.position = step.event === 'start' ? step.args[0] : this.getPositionWithOffset(step.args[0], step.args[1]);
-  step.context = this.context;
-  this.emit('step', step);
-}
-
-function set (id, events) {
-  var self = this;
-  events = events.filter(function (event) {
-    var parts = event[0].split('.');
-    var bars = parseInt(parts[0], 10) - 1;
-    var beats = parseInt(parts[1], 10) - 1;
-    var ticks = parseInt(parts[2], 10) - 1;
-    if (ticks >= 96 || beats >= self.beatsPerBar || bars >= self.loopLength) {
-      console.warn('Event is out of bounds: ' + event[0], event);
-      return false; 
-    }
-    return true;
-  }).map(function (event) {
-    return [self.getClockPositionFromPosition(event[0]), self.getDurationFromTicks(event[1]), null, null, event[0], event[1]].concat(event.slice(2));
-  });
-  this.scheduler.set(id, events, this.beatsPerBar * this.loopLength);
-}
-
-function get (id) {
-  return this.scheduler.get(id);
-}
-
-function channels () {
-  return this.scheduler.getIds();
-}
-
-function clear (id) {
-  var self = this;
-  if (id) {
-    this.set(id, []);
-  }
-  else {
-    this.scheduler.getIds().forEach(function (id) {
-      self.clear(id);
-    });
-  }
-}
-
-function start () {
-  var now = new Date().valueOf();
-  var waited = now - loadTime;
-  if (waited < this.upstartWait) {
-    return setTimeout(start.bind(this), this.upstartWait - waited);
-  }
-
-  if (!this.clock._state.playing) {
-    this.clock.start();
-  }
-}
-
-function pause () {
-  if (this.clock._state.playing) {
-    this.clock.stop();
-  }
-}
-
-function stop () {
-  if (this.clock._state.playing) {
-    this.clock.stop();
-    this.clock.setPosition(0);
-    this._position = '0.0.00';
-  }
-}
-
-function position () {
-  return this._position;
-}
-
-function setPosition (position) {
-  this.clock.setPosition(this.getClockPositionFromPosition(position));
-}
-
-function setTempo (tempo) {
-  this.clock.setTempo(tempo);
-}
-
-function setBeatsPerBar (beats) {
-  this.beatsPerBar = beats;
-}
-
-function setLoopLength (bars) {
-  this.loopLength = bars;
-}
-
-var proto = Dilla.prototype;
-[set, get, clear, start, stop, pause, getPositionFromTime, getPositionFromClockPosition, setTempo, setPosition, getClockPositionFromPosition, getDurationFromTicks, getPositionWithOffset, setBeatsPerBar, setLoopLength, channels, position].forEach(function (fn) {
-  proto[fn.name] = fn;
-});
-
-module.exports = Dilla;
-},{"bopper":26,"ditty":29,"events":6,"util":24}],26:[function(require,module,exports){
-var Stream = require('stream')
-var Event = require('geval')
-
-var inherits = require('util').inherits
-
-module.exports = Bopper
-
-function Bopper(audioContext){
-  if (!(this instanceof Bopper)){
-    return new Bopper(audioContext)
-  }
-
-  var self = this
-
-  Stream.call(this)
-  this.readable = true
-  this.writable = false
-
-  this.context = audioContext
-  var processor = this._processor = audioContext.createScriptProcessor(512, 1, 1)
-
-  var handleTick = bopperTick.bind(this)
-  this._processor.onaudioprocess = handleTick
-
-  var tempo = 120
-  var cycleLength = (1 / audioContext.sampleRate) * this._processor.bufferSize
-
-  this._state = {
-    lastTo: 0,
-    lastEndTime: 0,
-    playing: false,
-    bpm: tempo,
-    beatDuration: 60 / tempo,
-    increment: (tempo / 60) * cycleLength,
-    cycleLength: cycleLength,
-    preCycle: 5,
-  }
-
-  // frp version
-  this.onSchedule = Event(function(broadcast){
-    self.on('data', broadcast)
-  })
-
-  processor.connect(audioContext.destination)
-}
-
-inherits(Bopper, Stream)
-
-var proto = Bopper.prototype
-
-
-proto.start = function(){
-  this._state.playing = true
-  this.emit('start')
-}
-
-proto.stop = function(){
-  this._state.playing = false
-  this.emit('stop')
-}
-
-proto.setTempo = function(tempo){
-  var bps = tempo/60
-  var state = this._state
-  state.beatDuration = 60/tempo
-  state.increment = bps * state.cycleLength
-  state.bpm = tempo
-  this.emit('tempo', state.bpm)
-}
-
-proto.getTempo = function(){
-  return this._state.bpm
-}
-
-proto.isPlaying = function(){
-  return this._state.playing
-}
-
-proto.setPosition = function(position){
-  this._state.lastTo = parseFloat(position)
-}
-
-proto.setSpeed = function(multiplier){
-  var state = this._state
-
-  multiplier = parseFloat(multiplier) || 0
-
-  var tempo = state.bpm * multiplier
-  var bps = tempo/60
-
-  state.beatDuration = 60/tempo
-  state.increment = bps * state.cycleLength
-}
-
-
-proto.getPositionAt = function(time){
-  var state = this._state
-  var delta = state.lastEndTime - time
-  return state.lastTo - (delta / state.beatDuration)
-}
-
-proto.getTimeAt = function(position){
-  var state = this._state
-  var positionOffset = this.getCurrentPosition() - position
-  return this.context.currentTime - (positionOffset * state.beatDuration)
-}
-
-proto.getCurrentPosition = function(){
-  return this.getPositionAt(this.context.currentTime)
-}
-
-proto.getNextScheduleTime = function(){
-  var state = this._state
-  return state.lastEndTime
-}
-
-proto.getBeatDuration = function(){
-  var state = this._state
-  return state.beatDuration
-}
-
-
-proto._schedule = function(time, from, to){
-  var state = this._state
-  var duration = (to - from) * state.beatDuration
-  this.emit('data', {
-    from: from,
-    to: to,
-    time: time,
-    duration: duration,
-    beatDuration: state.beatDuration
-  })
-}
-
-function bopperTick(e){
-  var state = this._state
-  var currentTime = this.context.currentTime
-
-  var endTime = this.context.currentTime + (state.cycleLength * state.preCycle)
-  var time = state.lastEndTime
-  state.lastEndTime = endTime
-
-  if (state.playing){
-    var duration = endTime - time
-    var length = duration / state.beatDuration
-
-    var from = state.lastTo
-    var to = from + length
-    state.lastTo = to
-
-    // skip if getting behind
-    if ((currentTime - (state.cycleLength*2)) < time){
-      this._schedule(time, from, to)
-    }
-  }
-
-}
-},{"geval":28,"stream":21,"util":24}],27:[function(require,module,exports){
-module.exports = Event
-
-function Event() {
-    var listeners = []
-
-    return { broadcast: broadcast, listen: event }
-
-    function broadcast(value) {
-        for (var i = 0; i < listeners.length; i++) {
-            listeners[i](value)
-        }
-    }
-
-    function event(listener) {
-        listeners.push(listener)
-
-        return removeListener
-
-        function removeListener() {
-            var index = listeners.indexOf(listener)
-            if (index !== -1) {
-                listeners.splice(index, 1)
-            }
-        }
-    }
-}
-
-},{}],28:[function(require,module,exports){
-var Event = require('./event.js')
-
-module.exports = Source
-
-function Source(broadcaster) {
-    var tuple = Event()
-
-    broadcaster(tuple.broadcast)
-
-    return tuple.listen
-}
-
-},{"./event.js":27}],29:[function(require,module,exports){
-module.exports = Ditty
-
-var Stream = require('stream')
-var inherits = require('util').inherits
-
-function Ditty(){
-
-  if (!(this instanceof Ditty)){
-    return new Ditty()
-  }
-
-  Stream.call(this)
-
-  this.readable = true
-  this.writable = true
-
-  this._state = {
-    loops: {},
-    lengths: {},
-    ids: [],
-    queue: []
-  }
-}
-
-inherits(Ditty, Stream)
-
-var proto = Ditty.prototype
-
-proto.set = function(id, events, length){
-  var state = this._state
-  if (events){
-    if (!state.loops[id]){
-      state.ids.push(id)
-    }
-    state.loops[id] = events
-    state.lengths[id] = length || 8
-  } else {
-    var index = state.ids.indexOf(id)
-    if (~index){
-      state.ids.splice(index, 1)
-    }
-    state.loops[id] = null
-  }
-
-  if (state.loops[id]){
-    this.emit('change', {
-      id: id,
-      events: state.loops[id],
-      length: state.lengths[id]
-    })
-  } else {
-    this.emit('change', {
-      id: id
-    })
-  }
-}
-
-proto.get = function(id){
-  return this._state.loops[id]
-}
-
-proto.getLength = function(id){
-  return this._state.lengths[id]
-}
-
-proto.getIds = function(){
-  return this._state.ids
-}
-
-proto.getDescriptors = function(){
-  var state = this._state
-  var result = []
-  for (var i=0;i<state.ids.length;i++){
-    var id = state.ids[i]
-    if (state.loops[id]){
-      result.push({
-        id: id, 
-        length: state.lengths[id], 
-        events: state.loops[id]
-      })
-    }
-  }
-  return result
-}
-
-proto.update = function(descriptor){
-  this.set(descriptor.id, descriptor.events, descriptor.length)
-}
-
-proto.push = function(data){
-  this.emit('data', data)
-}
-
-proto.write = function(obj){
-  this._transform(obj)
-}
-
-proto._transform = function(obj){
-  var begin = window.performance.now()
-  var endAt = begin + (obj.duration * 900)
-
-  var state = this._state
-  var from = obj.from
-  var to = obj.to
-  var time = obj.time
-  var nextTime = obj.time + obj.duration
-  var beatDuration = obj.beatDuration
-  var ids = state.ids
-  var queue = state.queue
-  var localQueue = []
-
-  for (var i=queue.length-1;i>=0;i--){
-    var item = queue[i]
-    if (to > item.position || shouldSendImmediately(item, state.loops[item.id])){
-      if (to > item.position){
-        var delta = (item.position - from) * beatDuration
-        item.time = time + delta
-      } else {
-        item.time = time
-        item.position = from
-      }
-      queue.splice(i, 1)
-      this.push(item)
-    }
-  }
-
-  for (var i=0;i<ids.length;i++){
-
-    var id = ids[i]
-    var events = state.loops[id]
-    var loopLength = state.lengths[id]
-
-    for (var j=0;j<events.length;j++){
-
-      var event = events[j]
-      var startPosition = getAbsolutePosition(event[0], from, loopLength)
-      var endPosition = startPosition + event[1]
-
-      if (startPosition >= from && startPosition < to){
-
-        var delta = (startPosition - from) * beatDuration
-        var duration = event[1] * beatDuration
-        var startTime = time + delta
-        var endTime = startTime + duration
-        
-        localQueue.push({
-          id: id,
-          event: 'start',
-          position: startPosition,
-          args: event.slice(4),
-          time: startTime
-        })
-
-        localQueue.push({
-          id: id,
-          event: 'stop',
-          position: endPosition,
-          args: event.slice(4),
-          time: endTime
-        })
-      }
-    }
-  }
-
-  // ensure events stream in time sequence
-  localQueue.sort(compare)
-  for (var i=0;i<localQueue.length;i++){
-    var item = localQueue[i]
-    if (item.time < nextTime){
-      if (window.performance.now() < endAt){
-        this.push(item)
-      }
-    } else {
-      // queue event for later
-      queue.push(item)
-    }
-  }
-}
-
-function compare(a,b){
-  return a.time-b.time
-}
-
-function getAbsolutePosition(pos, start, length){
-  pos = pos % length
-  var micro = start % length
-  var position = start+pos-micro
-  if (position < start){
-    return position + length
-  } else {
-    return position
-  }
-}
-
-function shouldSendImmediately(message, loop){
-  return message.event === 'stop' && (!loop || !loop.length)
-}
-},{"stream":21,"util":24}],30:[function(require,module,exports){
+},{"./support/isBuffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/support/isBufferBrowser.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/src/boombap.js":[function(require,module,exports){
 // Set up the dilla object
 var Dilla = require('dilla');
 var audioContext = new AudioContext();
@@ -5431,7 +5431,7 @@ function loadSound (name, done) {
 var soundNames = [
   'kick', 'snare', 'hihat',
   'sound1', 'sound2', 'sound3', 'sound4',
-  'pling', 'plong'
+  'plong1', 'plong2'
 ];
 
 function loadNextSound () {
@@ -5488,13 +5488,13 @@ dilla.set('sound4', [
   ['1.2.05', 45]
 ]);
 
-dilla.set('pling', [
+dilla.set('plong1', [
   ['1.1.01', 95],
   ['1.4.72', 24],
   ['2.3.25', 24]
 ]);
 
-dilla.set('plong', [
+dilla.set('plong2', [
   ['2.1.01', 95],
   ['2.1.48', 150],
   ['2.3.48', 150]
@@ -5554,4 +5554,4 @@ function playSound (step) {
     }
   }
 }
-},{"dilla":25}]},{},[30]);
+},{"dilla":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/index.js"}]},{},["/Users/adamrenklint/Projects/dilla-boombap-tutorial/src/boombap.js"]);

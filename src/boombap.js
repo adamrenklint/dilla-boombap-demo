@@ -31,7 +31,7 @@ function loadSound (name, done) {
 var soundNames = [
   'kick', 'snare', 'hihat',
   'sound1', 'sound2', 'sound3', 'sound4',
-  'pling', 'plong'
+  'plong1', 'plong2'
 ];
 
 function loadNextSound () {
@@ -88,13 +88,13 @@ dilla.set('sound4', [
   ['1.2.05', 45]
 ]);
 
-dilla.set('pling', [
+dilla.set('plong1', [
   ['1.1.01', 95],
   ['1.4.72', 24],
   ['2.3.25', 24]
 ]);
 
-dilla.set('plong', [
+dilla.set('plong2', [
   ['2.1.01', 95],
   ['2.1.48', 150],
   ['2.3.48', 150]
