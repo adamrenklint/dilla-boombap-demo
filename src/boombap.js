@@ -28,7 +28,11 @@ function loadSound (name, done) {
   request.send();
 }
 
-var soundNames = ['kick', 'snare', 'hihat'];
+var soundNames = [
+  'kick', 'snare', 'hihat',
+  'sample1', 'sample2', 'sample3', 'sample4',
+  'pling1', 'pling2'
+];
 
 function loadNextSound () {
   var soundName = soundNames.shift();
@@ -61,21 +65,39 @@ dilla.set('snare', [
 
 dilla.set('hihat', [
   ['1.1.01'],
-  // ['1.1.51'],
   ['1.2.01'],
-  // ['1.2.49'],
   ['1.3.01'],
-  // ['1.3.49'],
   ['1.4.01'],
   ['1.4.53'],
   ['2.1.01'],
-  // ['2.1.49'],
   ['2.2.01'],
-  // ['2.2.49'],
   ['2.3.01'],
-  // ['2.3.49'],
   ['2.4.01'],
   ['2.4.53']
+]);
+
+dilla.set('sample1', [
+  ['1.3.25', 88]
+]);
+
+dilla.set('sample2', [
+  ['1.2.50', 70]
+]);
+
+dilla.set('sample4', [
+  ['1.2.05', 45]
+]);
+
+dilla.set('pling1', [
+  ['1.1.01', 95],
+  ['1.4.72', 24],
+  ['2.3.25', 24]
+]);
+
+dilla.set('pling2', [
+  ['2.1.01', 95],
+  ['2.1.48', 150],
+  ['2.3.48', 150]
 ]);
 
 dilla.on('step', playSound);
@@ -89,6 +111,8 @@ compressor.attack.value = 0;
 compressor.release.value = 0.25;
 compressor.connect(audioContext.destination);
 
+var sources = {};
+
 function playSound (step) {
   
   if (step.event === 'start') {
@@ -98,9 +122,10 @@ function playSound (step) {
     var gainNode = audioContext.createGain();
     // var gain = this.gain;
     // if (note.gain) gain = gain * note.gain;
-    gainNode.gain.value = step.id === 'hihat' ? 0.7 : 1;
-    source.connect(gainNode);
-    gainNode.connect(compressor);
+    // gainNode.gain.value = step.id === 'hihat' ? 0.7 : 1;
+    // source.connect(gainNode);
+    // gainNode.connect(compressor);
+    source.connect(audioContext.destination);
 
     // if (step.id === 'hihat') {
     // //   // source.connect(compressor);
@@ -117,5 +142,15 @@ function playSound (step) {
     // self.playingNote = note;  
     
     source.start(step.time);
+
+    sources[step.id + step.args[0]] = source;
+    // console.log(step.id + step.args[0])
+  }
+  else if (step.event === 'stop') {
+    var source = sources[step.id + step.args[0]];
+    if (source) {
+      sources[step.id + step.args[0]] = null;
+      source.stop(step.time);
+    }
   }
 }
