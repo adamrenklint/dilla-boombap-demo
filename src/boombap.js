@@ -30,8 +30,8 @@ function loadSound (name, done) {
 
 var soundNames = [
   'kick', 'snare', 'hihat',
-  'sample1', 'sample2', 'sample3', 'sample4',
-  'pling1', 'pling2'
+  'sound1', 'sound2', 'sound3', 'sound4',
+  'pling', 'plong'
 ];
 
 function loadNextSound () {
@@ -76,25 +76,25 @@ dilla.set('hihat', [
   ['2.4.53']
 ]);
 
-dilla.set('sample1', [
+dilla.set('sound1', [
   ['1.3.25', 88]
 ]);
 
-dilla.set('sample2', [
+dilla.set('sound2', [
   ['1.2.50', 70]
 ]);
 
-dilla.set('sample4', [
+dilla.set('sound4', [
   ['1.2.05', 45]
 ]);
 
-dilla.set('pling1', [
+dilla.set('pling', [
   ['1.1.01', 95],
   ['1.4.72', 24],
   ['2.3.25', 24]
 ]);
 
-dilla.set('pling2', [
+dilla.set('plong', [
   ['2.1.01', 95],
   ['2.1.48', 150],
   ['2.3.48', 150]
