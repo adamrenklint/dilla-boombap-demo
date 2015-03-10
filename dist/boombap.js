@@ -1,6 +1,6 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/browser-resolve/empty.js":[function(require,module,exports){
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/index.js":[function(require,module,exports){
+},{}],2:[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -1338,7 +1338,7 @@ function decodeUtf8Char (str) {
   }
 }
 
-},{"base64-js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js","ieee754":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js","is-array":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/is-array/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js":[function(require,module,exports){
+},{"base64-js":3,"ieee754":4,"is-array":5}],3:[function(require,module,exports){
 var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 ;(function (exports) {
@@ -1464,7 +1464,7 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	exports.fromByteArray = uint8ToBase64
 }(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js":[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 exports.read = function(buffer, offset, isLE, mLen, nBytes) {
   var e, m,
       eLen = nBytes * 8 - mLen - 1,
@@ -1550,7 +1550,7 @@ exports.write = function(buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/is-array/index.js":[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 
 /**
  * isArray
@@ -1585,7 +1585,7 @@ module.exports = isArray || function (val) {
   return !! val && '[object Array]' == str.call(val);
 };
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/events/events.js":[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -1888,7 +1888,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js":[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1913,12 +1913,12 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/isarray/index.js":[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 module.exports = Array.isArray || function (arr) {
   return Object.prototype.toString.call(arr) == '[object Array]';
 };
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/process/browser.js":[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1978,10 +1978,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/duplex.js":[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 module.exports = require("./lib/_stream_duplex.js")
 
-},{"./lib/_stream_duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js":[function(require,module,exports){
+},{"./lib/_stream_duplex.js":11}],11:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2074,7 +2074,7 @@ function forEach (xs, f) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_readable":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js","./_stream_writable":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/process/browser.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js":[function(require,module,exports){
+},{"./_stream_readable":13,"./_stream_writable":15,"_process":9,"core-util-is":16,"inherits":7}],12:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2122,7 +2122,7 @@ PassThrough.prototype._transform = function(chunk, encoding, cb) {
   cb(null, chunk);
 };
 
-},{"./_stream_transform":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js":[function(require,module,exports){
+},{"./_stream_transform":14,"core-util-is":16,"inherits":7}],13:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3077,7 +3077,7 @@ function indexOf (xs, x) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/process/browser.js","buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/index.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/events/events.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js","isarray":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/isarray/index.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js","string_decoder/":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/string_decoder/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/browser-resolve/empty.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js":[function(require,module,exports){
+},{"./_stream_duplex":11,"_process":9,"buffer":2,"core-util-is":16,"events":6,"inherits":7,"isarray":8,"stream":21,"string_decoder/":22,"util":1}],14:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3288,7 +3288,7 @@ function done(stream, er) {
   return stream.push(null);
 }
 
-},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js":[function(require,module,exports){
+},{"./_stream_duplex":11,"core-util-is":16,"inherits":7}],15:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3769,7 +3769,7 @@ function endWritable(stream, state, cb) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/process/browser.js","buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/index.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js":[function(require,module,exports){
+},{"./_stream_duplex":11,"_process":9,"buffer":2,"core-util-is":16,"inherits":7,"stream":21}],16:[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3879,10 +3879,10 @@ function objectToString(o) {
   return Object.prototype.toString.call(o);
 }
 }).call(this,require("buffer").Buffer)
-},{"buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/passthrough.js":[function(require,module,exports){
+},{"buffer":2}],17:[function(require,module,exports){
 module.exports = require("./lib/_stream_passthrough.js")
 
-},{"./lib/_stream_passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/readable.js":[function(require,module,exports){
+},{"./lib/_stream_passthrough.js":12}],18:[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = require('stream');
 exports.Readable = exports;
@@ -3891,13 +3891,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","./lib/_stream_passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js","./lib/_stream_readable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js","./lib/_stream_transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js","./lib/_stream_writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/transform.js":[function(require,module,exports){
+},{"./lib/_stream_duplex.js":11,"./lib/_stream_passthrough.js":12,"./lib/_stream_readable.js":13,"./lib/_stream_transform.js":14,"./lib/_stream_writable.js":15,"stream":21}],19:[function(require,module,exports){
 module.exports = require("./lib/_stream_transform.js")
 
-},{"./lib/_stream_transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/writable.js":[function(require,module,exports){
+},{"./lib/_stream_transform.js":14}],20:[function(require,module,exports){
 module.exports = require("./lib/_stream_writable.js")
 
-},{"./lib/_stream_writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js":[function(require,module,exports){
+},{"./lib/_stream_writable.js":15}],21:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4026,7 +4026,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/events/events.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js","readable-stream/duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/duplex.js","readable-stream/passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/passthrough.js","readable-stream/readable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/readable.js","readable-stream/transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/transform.js","readable-stream/writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/writable.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/string_decoder/index.js":[function(require,module,exports){
+},{"events":6,"inherits":7,"readable-stream/duplex.js":10,"readable-stream/passthrough.js":17,"readable-stream/readable.js":18,"readable-stream/transform.js":19,"readable-stream/writable.js":20}],22:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4249,14 +4249,14 @@ function base64DetectIncompleteChar(buffer) {
   this.charLength = this.charReceived ? 3 : 0;
 }
 
-},{"buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/support/isBufferBrowser.js":[function(require,module,exports){
+},{"buffer":2}],23:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/util.js":[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -4846,7 +4846,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/support/isBufferBrowser.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/process/browser.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/index.js":[function(require,module,exports){
+},{"./support/isBuffer":23,"_process":9,"inherits":7}],25:[function(require,module,exports){
 var events = require('events');
 var inherits = require('util').inherits
 var bopper = require('bopper');
@@ -5028,7 +5028,7 @@ var proto = Dilla.prototype;
 });
 
 module.exports = Dilla;
-},{"bopper":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/index.js","ditty":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/ditty/index.js","events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/events/events.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/index.js":[function(require,module,exports){
+},{"bopper":26,"ditty":29,"events":6,"util":24}],26:[function(require,module,exports){
 var Stream = require('stream')
 var Event = require('geval')
 
@@ -5186,7 +5186,7 @@ function bopperTick(e){
   }
 
 }
-},{"geval":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/source.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/event.js":[function(require,module,exports){
+},{"geval":28,"stream":21,"util":24}],27:[function(require,module,exports){
 module.exports = Event
 
 function Event() {
@@ -5214,7 +5214,7 @@ function Event() {
     }
 }
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/source.js":[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 var Event = require('./event.js')
 
 module.exports = Source
@@ -5227,7 +5227,7 @@ function Source(broadcaster) {
     return tuple.listen
 }
 
-},{"./event.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/event.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/ditty/index.js":[function(require,module,exports){
+},{"./event.js":27}],29:[function(require,module,exports){
 module.exports = Ditty
 
 var Stream = require('stream')
@@ -5425,7 +5425,7 @@ function getAbsolutePosition(pos, start, length){
 function shouldSendImmediately(message, loop){
   return message.event === 'stop' && (!loop || !loop.length)
 }
-},{"stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/soundbank-reverb/build-impulse.js":[function(require,module,exports){
+},{"stream":21,"util":24}],30:[function(require,module,exports){
 module.exports = buildImpulse
 
 var chunkSize = 2048
@@ -5495,7 +5495,7 @@ function next(){
     setTimeout(next, 5)
   }
 }
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/soundbank-reverb/index.js":[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 // based on https://github.com/web-audio-components/simple-reverb by Nick Thompson
 
 var buildImpulse = require('./build-impulse')
@@ -5632,7 +5632,7 @@ var properties = {
 }
 
 
-},{"./build-impulse":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/soundbank-reverb/build-impulse.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/src/boombap.js":[function(require,module,exports){
+},{"./build-impulse":30}],32:[function(require,module,exports){
 // Set up the dilla object
 var Dilla = require('dilla');
 var audioContext = new AudioContext();
@@ -5799,4 +5799,4 @@ dilla.set('plong2', [
 // ]);
 
 loadNextSound();
-},{"dilla":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/index.js","soundbank-reverb":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/soundbank-reverb/index.js"}]},{},["/Users/adamrenklint/Projects/dilla-boombap-tutorial/src/boombap.js"]);
+},{"dilla":25,"soundbank-reverb":31}]},{},[32]);
