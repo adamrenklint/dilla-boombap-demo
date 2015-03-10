@@ -31,7 +31,8 @@ function loadSound (name, done) {
 var soundNames = [
   'kick', 'snare', 'hihat',
   'sound1', 'sound2', 'sound3', 'sound4',
-  'plong1', 'plong2'
+  'plong1', 'plong2',
+  'bass'
 ];
 
 function loadNextSound () {
@@ -48,7 +49,8 @@ dilla.set('kick', [
   ['1.1.01'],
   ['1.1.51', null, 0.8],
   ['1.2.88'],
-  ['2.1.01', null, 0.7],
+  ['1.4.72', null, 0.7],
+  ['2.1.51', null, 0.7],
   ['2.3.51', null, 0.8],
   ['2.3.88']
 ]);
@@ -92,9 +94,16 @@ dilla.set('plong1', [
 ]);
 
 dilla.set('plong2', [
-  ['2.1.01', 95],
-  ['2.1.48', 150, 0.5],
+  ['2.1.01', 95, 0.6],
+  ['2.1.48', 150, 0.8],
   ['2.3.48', 150]
+]);
+
+dilla.set('bass', [
+  ['1.1.01', 95, 1, 0.5],
+  ['2.1.01', 40, 0.6, 0.75],
+  ['2.1.48', 40, 0.6, 0.75],
+  ['2.3.48', 96, 0.6, 0.75]
 ]);
 
 dilla.on('step', playSound);
@@ -115,6 +124,7 @@ function playSound (step) {
   if (step.event === 'start') {
     var source = audioContext.createBufferSource();
     source.buffer = sounds[step.id];
+    source.playbackRate.value = step.args[3] || 1;
     
     var gainNode = audioContext.createGain();
     gainNode.gain.value = step.args[2] || 1;
@@ -126,7 +136,7 @@ function playSound (step) {
   }
   else if (step.event === 'stop') {
     var source = sources[step.id + step.args[0]];
-    if (source && step.position !== step.args[0]) {
+    if (source) {
       sources[step.id + step.args[0]] = null;
       source.stop(step.time);
     }

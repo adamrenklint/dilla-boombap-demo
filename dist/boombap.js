@@ -1,583 +1,6 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/index.js":[function(require,module,exports){
-var events = require('events');
-var inherits = require('util').inherits
-var bopper = require('bopper');
-var ditty = require('ditty');
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/browser-resolve/empty.js":[function(require,module,exports){
 
-var loadTime = new Date().valueOf();
-
-function Dilla (audioContext, options) {
-
-  if (!(this instanceof Dilla)){
-    return new Dilla(audioContext, options);
-  }
-
-  events.EventEmitter.call(this);
-
-  options = options || {};
-
-  this.upstartWait = options.upstartWait || 250;
-  this.tempo = options.tempo || 120;
-  this.beatsPerBar = options.beatsPerBar || 4;
-  this.loopLength = options.loopLength || 2;
-  this._position = '0.0.00';
-  
-  this.context = audioContext;
-  this.clock = bopper(this.context);
-  this.scheduler = ditty();
-
-  this.clock.setTempo(this.tempo);
-  this.clock.on('data', updatePositionFromClock.bind(this));
-  this.clock.pipe(this.scheduler).on('data', emitStep.bind(this));
-}
-
-inherits(Dilla, events.EventEmitter);
-
-function updatePositionFromClock (step) {
-  var position = this.getPositionFromTime(step.time);
-  if (this._position !== position) {
-    this._position = position;
-    this.emit('tick', { 'position': this._position, 'context': this.context });
-  }
-}
-
-function getPositionFromTime (time) {
-  var offset = (this.clock._state.cycleLength * this.clock._state.preCycle) * 1;
-  var position = this.clock.getPositionAt(time - offset);
-  return this.getPositionFromClockPosition(position);
-}
-
-function getPositionFromClockPosition (position) {
-  if (position < 0) return '0.0.00';
-  var beatsPerLoop = this.loopLength * this.beatsPerBar;
-  var loops = Math.floor(position / beatsPerLoop) || 0;
-  position = position - (loops * beatsPerLoop);
-  var bars = Math.floor(position / this.beatsPerBar);
-  position = position - (bars * this.beatsPerBar);
-  var beats = Math.floor(position);
-  position = position - beats;
-  var ticks = Math.floor(position * 96) + 1;
-  if (ticks < 10) ticks = '0' + ticks;
-  return ++bars + '.' + ++beats + '.' + ticks;
-}
-
-function getClockPositionFromPosition (position) {
-  var parts = position.split('.');
-  var bars = parseInt(parts[0], 10) - 1;
-  var beats = parseInt(parts[1], 10) - 1;
-  var ticks = parseInt(parts[2], 10) - 1;
-  return (bars * this.beatsPerBar) + beats + (ticks / 96);
-}
-
-function getPositionWithOffset (position, offset) {
-  var clockPosition = this.getClockPositionFromPosition(position);
-  var clockOffset = offset / 96;
-  return this.getPositionFromClockPosition(clockPosition + clockOffset);
-}
-
-function getDurationFromTicks (ticks) {
-  return (1 / 96) * ticks;
-}
-
-function emitStep (step) {
-  var offset = step.offset = (this.clock._state.cycleLength * this.clock._state.preCycle) * 1;
-  step.time = step.time + offset;
-  step.clockPosition = step.position;
-  step.position = step.event === 'start' ? step.args[0] : this.getPositionWithOffset(step.args[0], step.args[1]);
-  step.context = this.context;
-  this.emit('step', step);
-}
-
-function set (id, events) {
-  var self = this;
-  events = events.filter(function (event) {
-    var parts = event[0].split('.');
-    var bars = parseInt(parts[0], 10) - 1;
-    var beats = parseInt(parts[1], 10) - 1;
-    var ticks = parseInt(parts[2], 10) - 1;
-    if (ticks >= 96 || beats >= self.beatsPerBar || bars >= self.loopLength) {
-      console.warn('Event is out of bounds: ' + event[0], event);
-      return false; 
-    }
-    return true;
-  }).map(function (event) {
-    return [self.getClockPositionFromPosition(event[0]), self.getDurationFromTicks(event[1]), null, null, event[0], event[1]].concat(event.slice(2));
-  });
-  this.scheduler.set(id, events, this.beatsPerBar * this.loopLength);
-}
-
-function get (id) {
-  return this.scheduler.get(id);
-}
-
-function channels () {
-  return this.scheduler.getIds();
-}
-
-function clear (id) {
-  var self = this;
-  if (id) {
-    this.set(id, []);
-  }
-  else {
-    this.scheduler.getIds().forEach(function (id) {
-      self.clear(id);
-    });
-  }
-}
-
-function start () {
-  var now = new Date().valueOf();
-  var waited = now - loadTime;
-  if (waited < this.upstartWait) {
-    return setTimeout(start.bind(this), this.upstartWait - waited);
-  }
-
-  if (!this.clock._state.playing) {
-    this.clock.start();
-  }
-}
-
-function pause () {
-  if (this.clock._state.playing) {
-    this.clock.stop();
-  }
-}
-
-function stop () {
-  if (this.clock._state.playing) {
-    this.clock.stop();
-    this.clock.setPosition(0);
-    this._position = '0.0.00';
-  }
-}
-
-function position () {
-  return this._position;
-}
-
-function setPosition (position) {
-  this.clock.setPosition(this.getClockPositionFromPosition(position));
-}
-
-function setTempo (tempo) {
-  this.clock.setTempo(tempo);
-}
-
-function setBeatsPerBar (beats) {
-  this.beatsPerBar = beats;
-}
-
-function setLoopLength (bars) {
-  this.loopLength = bars;
-}
-
-var proto = Dilla.prototype;
-[set, get, clear, start, stop, pause, getPositionFromTime, getPositionFromClockPosition, setTempo, setPosition, getClockPositionFromPosition, getDurationFromTicks, getPositionWithOffset, setBeatsPerBar, setLoopLength, channels, position].forEach(function (fn) {
-  proto[fn.name] = fn;
-});
-
-module.exports = Dilla;
-},{"bopper":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/index.js","ditty":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/ditty/index.js","events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/events/events.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/index.js":[function(require,module,exports){
-var Stream = require('stream')
-var Event = require('geval')
-
-var inherits = require('util').inherits
-
-module.exports = Bopper
-
-function Bopper(audioContext){
-  if (!(this instanceof Bopper)){
-    return new Bopper(audioContext)
-  }
-
-  var self = this
-
-  Stream.call(this)
-  this.readable = true
-  this.writable = false
-
-  this.context = audioContext
-  var processor = this._processor = audioContext.createScriptProcessor(512, 1, 1)
-
-  var handleTick = bopperTick.bind(this)
-  this._processor.onaudioprocess = handleTick
-
-  var tempo = 120
-  var cycleLength = (1 / audioContext.sampleRate) * this._processor.bufferSize
-
-  this._state = {
-    lastTo: 0,
-    lastEndTime: 0,
-    playing: false,
-    bpm: tempo,
-    beatDuration: 60 / tempo,
-    increment: (tempo / 60) * cycleLength,
-    cycleLength: cycleLength,
-    preCycle: 5,
-  }
-
-  // frp version
-  this.onSchedule = Event(function(broadcast){
-    self.on('data', broadcast)
-  })
-
-  processor.connect(audioContext.destination)
-}
-
-inherits(Bopper, Stream)
-
-var proto = Bopper.prototype
-
-
-proto.start = function(){
-  this._state.playing = true
-  this.emit('start')
-}
-
-proto.stop = function(){
-  this._state.playing = false
-  this.emit('stop')
-}
-
-proto.setTempo = function(tempo){
-  var bps = tempo/60
-  var state = this._state
-  state.beatDuration = 60/tempo
-  state.increment = bps * state.cycleLength
-  state.bpm = tempo
-  this.emit('tempo', state.bpm)
-}
-
-proto.getTempo = function(){
-  return this._state.bpm
-}
-
-proto.isPlaying = function(){
-  return this._state.playing
-}
-
-proto.setPosition = function(position){
-  this._state.lastTo = parseFloat(position)
-}
-
-proto.setSpeed = function(multiplier){
-  var state = this._state
-
-  multiplier = parseFloat(multiplier) || 0
-
-  var tempo = state.bpm * multiplier
-  var bps = tempo/60
-
-  state.beatDuration = 60/tempo
-  state.increment = bps * state.cycleLength
-}
-
-
-proto.getPositionAt = function(time){
-  var state = this._state
-  var delta = state.lastEndTime - time
-  return state.lastTo - (delta / state.beatDuration)
-}
-
-proto.getTimeAt = function(position){
-  var state = this._state
-  var positionOffset = this.getCurrentPosition() - position
-  return this.context.currentTime - (positionOffset * state.beatDuration)
-}
-
-proto.getCurrentPosition = function(){
-  return this.getPositionAt(this.context.currentTime)
-}
-
-proto.getNextScheduleTime = function(){
-  var state = this._state
-  return state.lastEndTime
-}
-
-proto.getBeatDuration = function(){
-  var state = this._state
-  return state.beatDuration
-}
-
-
-proto._schedule = function(time, from, to){
-  var state = this._state
-  var duration = (to - from) * state.beatDuration
-  this.emit('data', {
-    from: from,
-    to: to,
-    time: time,
-    duration: duration,
-    beatDuration: state.beatDuration
-  })
-}
-
-function bopperTick(e){
-  var state = this._state
-  var currentTime = this.context.currentTime
-
-  var endTime = this.context.currentTime + (state.cycleLength * state.preCycle)
-  var time = state.lastEndTime
-  state.lastEndTime = endTime
-
-  if (state.playing){
-    var duration = endTime - time
-    var length = duration / state.beatDuration
-
-    var from = state.lastTo
-    var to = from + length
-    state.lastTo = to
-
-    // skip if getting behind
-    if ((currentTime - (state.cycleLength*2)) < time){
-      this._schedule(time, from, to)
-    }
-  }
-
-}
-},{"geval":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/source.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/event.js":[function(require,module,exports){
-module.exports = Event
-
-function Event() {
-    var listeners = []
-
-    return { broadcast: broadcast, listen: event }
-
-    function broadcast(value) {
-        for (var i = 0; i < listeners.length; i++) {
-            listeners[i](value)
-        }
-    }
-
-    function event(listener) {
-        listeners.push(listener)
-
-        return removeListener
-
-        function removeListener() {
-            var index = listeners.indexOf(listener)
-            if (index !== -1) {
-                listeners.splice(index, 1)
-            }
-        }
-    }
-}
-
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/source.js":[function(require,module,exports){
-var Event = require('./event.js')
-
-module.exports = Source
-
-function Source(broadcaster) {
-    var tuple = Event()
-
-    broadcaster(tuple.broadcast)
-
-    return tuple.listen
-}
-
-},{"./event.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/event.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/ditty/index.js":[function(require,module,exports){
-module.exports = Ditty
-
-var Stream = require('stream')
-var inherits = require('util').inherits
-
-function Ditty(){
-
-  if (!(this instanceof Ditty)){
-    return new Ditty()
-  }
-
-  Stream.call(this)
-
-  this.readable = true
-  this.writable = true
-
-  this._state = {
-    loops: {},
-    lengths: {},
-    ids: [],
-    queue: []
-  }
-}
-
-inherits(Ditty, Stream)
-
-var proto = Ditty.prototype
-
-proto.set = function(id, events, length){
-  var state = this._state
-  if (events){
-    if (!state.loops[id]){
-      state.ids.push(id)
-    }
-    state.loops[id] = events
-    state.lengths[id] = length || 8
-  } else {
-    var index = state.ids.indexOf(id)
-    if (~index){
-      state.ids.splice(index, 1)
-    }
-    state.loops[id] = null
-  }
-
-  if (state.loops[id]){
-    this.emit('change', {
-      id: id,
-      events: state.loops[id],
-      length: state.lengths[id]
-    })
-  } else {
-    this.emit('change', {
-      id: id
-    })
-  }
-}
-
-proto.get = function(id){
-  return this._state.loops[id]
-}
-
-proto.getLength = function(id){
-  return this._state.lengths[id]
-}
-
-proto.getIds = function(){
-  return this._state.ids
-}
-
-proto.getDescriptors = function(){
-  var state = this._state
-  var result = []
-  for (var i=0;i<state.ids.length;i++){
-    var id = state.ids[i]
-    if (state.loops[id]){
-      result.push({
-        id: id, 
-        length: state.lengths[id], 
-        events: state.loops[id]
-      })
-    }
-  }
-  return result
-}
-
-proto.update = function(descriptor){
-  this.set(descriptor.id, descriptor.events, descriptor.length)
-}
-
-proto.push = function(data){
-  this.emit('data', data)
-}
-
-proto.write = function(obj){
-  this._transform(obj)
-}
-
-proto._transform = function(obj){
-  var begin = window.performance.now()
-  var endAt = begin + (obj.duration * 900)
-
-  var state = this._state
-  var from = obj.from
-  var to = obj.to
-  var time = obj.time
-  var nextTime = obj.time + obj.duration
-  var beatDuration = obj.beatDuration
-  var ids = state.ids
-  var queue = state.queue
-  var localQueue = []
-
-  for (var i=queue.length-1;i>=0;i--){
-    var item = queue[i]
-    if (to > item.position || shouldSendImmediately(item, state.loops[item.id])){
-      if (to > item.position){
-        var delta = (item.position - from) * beatDuration
-        item.time = time + delta
-      } else {
-        item.time = time
-        item.position = from
-      }
-      queue.splice(i, 1)
-      this.push(item)
-    }
-  }
-
-  for (var i=0;i<ids.length;i++){
-
-    var id = ids[i]
-    var events = state.loops[id]
-    var loopLength = state.lengths[id]
-
-    for (var j=0;j<events.length;j++){
-
-      var event = events[j]
-      var startPosition = getAbsolutePosition(event[0], from, loopLength)
-      var endPosition = startPosition + event[1]
-
-      if (startPosition >= from && startPosition < to){
-
-        var delta = (startPosition - from) * beatDuration
-        var duration = event[1] * beatDuration
-        var startTime = time + delta
-        var endTime = startTime + duration
-        
-        localQueue.push({
-          id: id,
-          event: 'start',
-          position: startPosition,
-          args: event.slice(4),
-          time: startTime
-        })
-
-        localQueue.push({
-          id: id,
-          event: 'stop',
-          position: endPosition,
-          args: event.slice(4),
-          time: endTime
-        })
-      }
-    }
-  }
-
-  // ensure events stream in time sequence
-  localQueue.sort(compare)
-  for (var i=0;i<localQueue.length;i++){
-    var item = localQueue[i]
-    if (item.time < nextTime){
-      if (window.performance.now() < endAt){
-        this.push(item)
-      }
-    } else {
-      // queue event for later
-      queue.push(item)
-    }
-  }
-}
-
-function compare(a,b){
-  return a.time-b.time
-}
-
-function getAbsolutePosition(pos, start, length){
-  pos = pos % length
-  var micro = start % length
-  var position = start+pos-micro
-  if (position < start){
-    return position + length
-  } else {
-    return position
-  }
-}
-
-function shouldSendImmediately(message, loop){
-  return message.event === 'stop' && (!loop || !loop.length)
-}
-},{"stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/browser-resolve/empty.js":[function(require,module,exports){
-
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/index.js":[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/index.js":[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -645,33 +68,30 @@ Buffer.TYPED_ARRAY_SUPPORT = (function () {
  * prototype.
  */
 function Buffer (subject, encoding, noZero) {
-  if (!(this instanceof Buffer))
-    return new Buffer(subject, encoding, noZero)
+  if (!(this instanceof Buffer)) return new Buffer(subject, encoding, noZero)
 
   var type = typeof subject
-
-  // Find the length
   var length
+
   if (type === 'number') {
     length = +subject
   } else if (type === 'string') {
     length = Buffer.byteLength(subject, encoding)
-  } else if (type === 'object' && subject !== null) { // assume object is array-like
-    if (subject.type === 'Buffer' && isArray(subject.data))
-      subject = subject.data
+  } else if (type === 'object' && subject !== null) {
+    // assume object is array-like
+    if (subject.type === 'Buffer' && isArray(subject.data)) subject = subject.data
     length = +subject.length
   } else {
     throw new TypeError('must start with number, buffer, array or string')
   }
 
-  if (length > kMaxLength)
-    throw new RangeError('Attempt to allocate Buffer larger than maximum ' +
-      'size: 0x' + kMaxLength.toString(16) + ' bytes')
+  if (length > kMaxLength) {
+    throw new RangeError('Attempt to allocate Buffer larger than maximum size: 0x' +
+      kMaxLength.toString(16) + ' bytes')
+  }
 
-  if (length < 0)
-    length = 0
-  else
-    length >>>= 0 // Coerce to uint32.
+  if (length < 0) length = 0
+  else length >>>= 0 // coerce to uint32
 
   var self = this
   if (Buffer.TYPED_ARRAY_SUPPORT) {
@@ -692,11 +112,13 @@ function Buffer (subject, encoding, noZero) {
   } else if (isArrayish(subject)) {
     // Treat array-ish objects as a byte array
     if (Buffer.isBuffer(subject)) {
-      for (i = 0; i < length; i++)
+      for (i = 0; i < length; i++) {
         self[i] = subject.readUInt8(i)
+      }
     } else {
-      for (i = 0; i < length; i++)
+      for (i = 0; i < length; i++) {
         self[i] = ((subject[i] % 256) + 256) % 256
+      }
     }
   } else if (type === 'string') {
     self.write(subject, 0, encoding)
@@ -706,28 +128,27 @@ function Buffer (subject, encoding, noZero) {
     }
   }
 
-  if (length > 0 && length <= Buffer.poolSize)
-    self.parent = rootParent
+  if (length > 0 && length <= Buffer.poolSize) self.parent = rootParent
 
   return self
 }
 
 function SlowBuffer (subject, encoding, noZero) {
-  if (!(this instanceof SlowBuffer))
-    return new SlowBuffer(subject, encoding, noZero)
+  if (!(this instanceof SlowBuffer)) return new SlowBuffer(subject, encoding, noZero)
 
   var buf = new Buffer(subject, encoding, noZero)
   delete buf.parent
   return buf
 }
 
-Buffer.isBuffer = function (b) {
+Buffer.isBuffer = function isBuffer (b) {
   return !!(b != null && b._isBuffer)
 }
 
-Buffer.compare = function (a, b) {
-  if (!Buffer.isBuffer(a) || !Buffer.isBuffer(b))
+Buffer.compare = function compare (a, b) {
+  if (!Buffer.isBuffer(a) || !Buffer.isBuffer(b)) {
     throw new TypeError('Arguments must be Buffers')
+  }
 
   if (a === b) return 0
 
@@ -743,7 +164,7 @@ Buffer.compare = function (a, b) {
   return 0
 }
 
-Buffer.isEncoding = function (encoding) {
+Buffer.isEncoding = function isEncoding (encoding) {
   switch (String(encoding).toLowerCase()) {
     case 'hex':
     case 'utf8':
@@ -762,7 +183,7 @@ Buffer.isEncoding = function (encoding) {
   }
 }
 
-Buffer.concat = function (list, totalLength) {
+Buffer.concat = function concat (list, totalLength) {
   if (!isArray(list)) throw new TypeError('Usage: Buffer.concat(list[, length])')
 
   if (list.length === 0) {
@@ -789,7 +210,7 @@ Buffer.concat = function (list, totalLength) {
   return buf
 }
 
-Buffer.byteLength = function (str, encoding) {
+Buffer.byteLength = function byteLength (str, encoding) {
   var ret
   str = str + ''
   switch (encoding || 'utf8') {
@@ -825,7 +246,7 @@ Buffer.prototype.length = undefined
 Buffer.prototype.parent = undefined
 
 // toString(encoding, start=0, end=buffer.length)
-Buffer.prototype.toString = function (encoding, start, end) {
+Buffer.prototype.toString = function toString (encoding, start, end) {
   var loweredCase = false
 
   start = start >>> 0
@@ -861,45 +282,84 @@ Buffer.prototype.toString = function (encoding, start, end) {
         return utf16leSlice(this, start, end)
 
       default:
-        if (loweredCase)
-          throw new TypeError('Unknown encoding: ' + encoding)
+        if (loweredCase) throw new TypeError('Unknown encoding: ' + encoding)
         encoding = (encoding + '').toLowerCase()
         loweredCase = true
     }
   }
 }
 
-Buffer.prototype.equals = function (b) {
+Buffer.prototype.equals = function equals (b) {
   if (!Buffer.isBuffer(b)) throw new TypeError('Argument must be a Buffer')
   if (this === b) return true
   return Buffer.compare(this, b) === 0
 }
 
-Buffer.prototype.inspect = function () {
+Buffer.prototype.inspect = function inspect () {
   var str = ''
   var max = exports.INSPECT_MAX_BYTES
   if (this.length > 0) {
     str = this.toString('hex', 0, max).match(/.{2}/g).join(' ')
-    if (this.length > max)
-      str += ' ... '
+    if (this.length > max) str += ' ... '
   }
   return '<Buffer ' + str + '>'
 }
 
-Buffer.prototype.compare = function (b) {
+Buffer.prototype.compare = function compare (b) {
   if (!Buffer.isBuffer(b)) throw new TypeError('Argument must be a Buffer')
   if (this === b) return 0
   return Buffer.compare(this, b)
 }
 
+Buffer.prototype.indexOf = function indexOf (val, byteOffset) {
+  if (byteOffset > 0x7fffffff) byteOffset = 0x7fffffff
+  else if (byteOffset < -0x80000000) byteOffset = -0x80000000
+  byteOffset >>= 0
+
+  if (this.length === 0) return -1
+  if (byteOffset >= this.length) return -1
+
+  // Negative offsets start from the end of the buffer
+  if (byteOffset < 0) byteOffset = Math.max(this.length + byteOffset, 0)
+
+  if (typeof val === 'string') {
+    if (val.length === 0) return -1 // special case: looking for empty string always fails
+    return String.prototype.indexOf.call(this, val, byteOffset)
+  }
+  if (Buffer.isBuffer(val)) {
+    return arrayIndexOf(this, val, byteOffset)
+  }
+  if (typeof val === 'number') {
+    if (Buffer.TYPED_ARRAY_SUPPORT && Uint8Array.prototype.indexOf === 'function') {
+      return Uint8Array.prototype.indexOf.call(this, val, byteOffset)
+    }
+    return arrayIndexOf(this, [ val ], byteOffset)
+  }
+
+  function arrayIndexOf (arr, val, byteOffset) {
+    var foundIndex = -1
+    for (var i = 0; byteOffset + i < arr.length; i++) {
+      if (arr[byteOffset + i] === val[foundIndex === -1 ? 0 : i - foundIndex]) {
+        if (foundIndex === -1) foundIndex = i
+        if (i - foundIndex + 1 === val.length) return byteOffset + foundIndex
+      } else {
+        foundIndex = -1
+      }
+    }
+    return -1
+  }
+
+  throw new TypeError('val must be string, number or Buffer')
+}
+
 // `get` will be removed in Node 0.13+
-Buffer.prototype.get = function (offset) {
+Buffer.prototype.get = function get (offset) {
   console.log('.get() is deprecated. Access using array indexes instead.')
   return this.readUInt8(offset)
 }
 
 // `set` will be removed in Node 0.13+
-Buffer.prototype.set = function (v, offset) {
+Buffer.prototype.set = function set (v, offset) {
   console.log('.set() is deprecated. Access using array indexes instead.')
   return this.writeUInt8(v, offset)
 }
@@ -924,9 +384,9 @@ function hexWrite (buf, string, offset, length) {
     length = strLen / 2
   }
   for (var i = 0; i < length; i++) {
-    var byte = parseInt(string.substr(i * 2, 2), 16)
-    if (isNaN(byte)) throw new Error('Invalid hex string')
-    buf[offset + i] = byte
+    var parsed = parseInt(string.substr(i * 2, 2), 16)
+    if (isNaN(parsed)) throw new Error('Invalid hex string')
+    buf[offset + i] = parsed
   }
   return i
 }
@@ -955,7 +415,7 @@ function utf16leWrite (buf, string, offset, length) {
   return charsWritten
 }
 
-Buffer.prototype.write = function (string, offset, length, encoding) {
+Buffer.prototype.write = function write (string, offset, length, encoding) {
   // Support both (string, offset, length, encoding)
   // and the legacy (string, encoding, offset, length)
   if (isFinite(offset)) {
@@ -972,8 +432,9 @@ Buffer.prototype.write = function (string, offset, length, encoding) {
 
   offset = Number(offset) || 0
 
-  if (length < 0 || offset < 0 || offset > this.length)
+  if (length < 0 || offset < 0 || offset > this.length) {
     throw new RangeError('attempt to write outside buffer bounds')
+  }
 
   var remaining = this.length - offset
   if (!length) {
@@ -1016,7 +477,7 @@ Buffer.prototype.write = function (string, offset, length, encoding) {
   return ret
 }
 
-Buffer.prototype.toJSON = function () {
+Buffer.prototype.toJSON = function toJSON () {
   return {
     type: 'Buffer',
     data: Array.prototype.slice.call(this._arr || this, 0)
@@ -1090,29 +551,26 @@ function utf16leSlice (buf, start, end) {
   return res
 }
 
-Buffer.prototype.slice = function (start, end) {
+Buffer.prototype.slice = function slice (start, end) {
   var len = this.length
   start = ~~start
   end = end === undefined ? len : ~~end
 
   if (start < 0) {
     start += len
-    if (start < 0)
-      start = 0
+    if (start < 0) start = 0
   } else if (start > len) {
     start = len
   }
 
   if (end < 0) {
     end += len
-    if (end < 0)
-      end = 0
+    if (end < 0) end = 0
   } else if (end > len) {
     end = len
   }
 
-  if (end < start)
-    end = start
+  if (end < start) end = start
 
   var newBuf
   if (Buffer.TYPED_ARRAY_SUPPORT) {
@@ -1125,8 +583,7 @@ Buffer.prototype.slice = function (start, end) {
     }
   }
 
-  if (newBuf.length)
-    newBuf.parent = this.parent || this
+  if (newBuf.length) newBuf.parent = this.parent || this
 
   return newBuf
 }
@@ -1135,62 +592,58 @@ Buffer.prototype.slice = function (start, end) {
  * Need to make sure that buffer isn't trying to write out of bounds.
  */
 function checkOffset (offset, ext, length) {
-  if ((offset % 1) !== 0 || offset < 0)
-    throw new RangeError('offset is not uint')
-  if (offset + ext > length)
-    throw new RangeError('Trying to access beyond buffer length')
+  if ((offset % 1) !== 0 || offset < 0) throw new RangeError('offset is not uint')
+  if (offset + ext > length) throw new RangeError('Trying to access beyond buffer length')
 }
 
-Buffer.prototype.readUIntLE = function (offset, byteLength, noAssert) {
+Buffer.prototype.readUIntLE = function readUIntLE (offset, byteLength, noAssert) {
   offset = offset >>> 0
   byteLength = byteLength >>> 0
-  if (!noAssert)
-    checkOffset(offset, byteLength, this.length)
+  if (!noAssert) checkOffset(offset, byteLength, this.length)
 
   var val = this[offset]
   var mul = 1
   var i = 0
-  while (++i < byteLength && (mul *= 0x100))
+  while (++i < byteLength && (mul *= 0x100)) {
     val += this[offset + i] * mul
+  }
 
   return val
 }
 
-Buffer.prototype.readUIntBE = function (offset, byteLength, noAssert) {
+Buffer.prototype.readUIntBE = function readUIntBE (offset, byteLength, noAssert) {
   offset = offset >>> 0
   byteLength = byteLength >>> 0
-  if (!noAssert)
+  if (!noAssert) {
     checkOffset(offset, byteLength, this.length)
+  }
 
   var val = this[offset + --byteLength]
   var mul = 1
-  while (byteLength > 0 && (mul *= 0x100))
+  while (byteLength > 0 && (mul *= 0x100)) {
     val += this[offset + --byteLength] * mul
+  }
 
   return val
 }
 
-Buffer.prototype.readUInt8 = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 1, this.length)
+Buffer.prototype.readUInt8 = function readUInt8 (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 1, this.length)
   return this[offset]
 }
 
-Buffer.prototype.readUInt16LE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 2, this.length)
+Buffer.prototype.readUInt16LE = function readUInt16LE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 2, this.length)
   return this[offset] | (this[offset + 1] << 8)
 }
 
-Buffer.prototype.readUInt16BE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 2, this.length)
+Buffer.prototype.readUInt16BE = function readUInt16BE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 2, this.length)
   return (this[offset] << 8) | this[offset + 1]
 }
 
-Buffer.prototype.readUInt32LE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 4, this.length)
+Buffer.prototype.readUInt32LE = function readUInt32LE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
 
   return ((this[offset]) |
       (this[offset + 1] << 8) |
@@ -1198,117 +651,104 @@ Buffer.prototype.readUInt32LE = function (offset, noAssert) {
       (this[offset + 3] * 0x1000000)
 }
 
-Buffer.prototype.readUInt32BE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 4, this.length)
+Buffer.prototype.readUInt32BE = function readUInt32BE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
 
   return (this[offset] * 0x1000000) +
-      ((this[offset + 1] << 16) |
-      (this[offset + 2] << 8) |
-      this[offset + 3])
+    ((this[offset + 1] << 16) |
+    (this[offset + 2] << 8) |
+    this[offset + 3])
 }
 
-Buffer.prototype.readIntLE = function (offset, byteLength, noAssert) {
+Buffer.prototype.readIntLE = function readIntLE (offset, byteLength, noAssert) {
   offset = offset >>> 0
   byteLength = byteLength >>> 0
-  if (!noAssert)
-    checkOffset(offset, byteLength, this.length)
+  if (!noAssert) checkOffset(offset, byteLength, this.length)
 
   var val = this[offset]
   var mul = 1
   var i = 0
-  while (++i < byteLength && (mul *= 0x100))
+  while (++i < byteLength && (mul *= 0x100)) {
     val += this[offset + i] * mul
+  }
   mul *= 0x80
 
-  if (val >= mul)
-    val -= Math.pow(2, 8 * byteLength)
+  if (val >= mul) val -= Math.pow(2, 8 * byteLength)
 
   return val
 }
 
-Buffer.prototype.readIntBE = function (offset, byteLength, noAssert) {
+Buffer.prototype.readIntBE = function readIntBE (offset, byteLength, noAssert) {
   offset = offset >>> 0
   byteLength = byteLength >>> 0
-  if (!noAssert)
-    checkOffset(offset, byteLength, this.length)
+  if (!noAssert) checkOffset(offset, byteLength, this.length)
 
   var i = byteLength
   var mul = 1
   var val = this[offset + --i]
-  while (i > 0 && (mul *= 0x100))
+  while (i > 0 && (mul *= 0x100)) {
     val += this[offset + --i] * mul
+  }
   mul *= 0x80
 
-  if (val >= mul)
-    val -= Math.pow(2, 8 * byteLength)
+  if (val >= mul) val -= Math.pow(2, 8 * byteLength)
 
   return val
 }
 
-Buffer.prototype.readInt8 = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 1, this.length)
-  if (!(this[offset] & 0x80))
-    return (this[offset])
+Buffer.prototype.readInt8 = function readInt8 (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 1, this.length)
+  if (!(this[offset] & 0x80)) return (this[offset])
   return ((0xff - this[offset] + 1) * -1)
 }
 
-Buffer.prototype.readInt16LE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 2, this.length)
+Buffer.prototype.readInt16LE = function readInt16LE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 2, this.length)
   var val = this[offset] | (this[offset + 1] << 8)
   return (val & 0x8000) ? val | 0xFFFF0000 : val
 }
 
-Buffer.prototype.readInt16BE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 2, this.length)
+Buffer.prototype.readInt16BE = function readInt16BE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 2, this.length)
   var val = this[offset + 1] | (this[offset] << 8)
   return (val & 0x8000) ? val | 0xFFFF0000 : val
 }
 
-Buffer.prototype.readInt32LE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 4, this.length)
+Buffer.prototype.readInt32LE = function readInt32LE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
 
   return (this[offset]) |
-      (this[offset + 1] << 8) |
-      (this[offset + 2] << 16) |
-      (this[offset + 3] << 24)
+    (this[offset + 1] << 8) |
+    (this[offset + 2] << 16) |
+    (this[offset + 3] << 24)
 }
 
-Buffer.prototype.readInt32BE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 4, this.length)
+Buffer.prototype.readInt32BE = function readInt32BE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
 
   return (this[offset] << 24) |
-      (this[offset + 1] << 16) |
-      (this[offset + 2] << 8) |
-      (this[offset + 3])
+    (this[offset + 1] << 16) |
+    (this[offset + 2] << 8) |
+    (this[offset + 3])
 }
 
-Buffer.prototype.readFloatLE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 4, this.length)
+Buffer.prototype.readFloatLE = function readFloatLE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
   return ieee754.read(this, offset, true, 23, 4)
 }
 
-Buffer.prototype.readFloatBE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 4, this.length)
+Buffer.prototype.readFloatBE = function readFloatBE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
   return ieee754.read(this, offset, false, 23, 4)
 }
 
-Buffer.prototype.readDoubleLE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 8, this.length)
+Buffer.prototype.readDoubleLE = function readDoubleLE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 8, this.length)
   return ieee754.read(this, offset, true, 52, 8)
 }
 
-Buffer.prototype.readDoubleBE = function (offset, noAssert) {
-  if (!noAssert)
-    checkOffset(offset, 8, this.length)
+Buffer.prototype.readDoubleBE = function readDoubleBE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 8, this.length)
   return ieee754.read(this, offset, false, 52, 8)
 }
 
@@ -1318,43 +758,42 @@ function checkInt (buf, value, offset, ext, max, min) {
   if (offset + ext > buf.length) throw new RangeError('index out of range')
 }
 
-Buffer.prototype.writeUIntLE = function (value, offset, byteLength, noAssert) {
+Buffer.prototype.writeUIntLE = function writeUIntLE (value, offset, byteLength, noAssert) {
   value = +value
   offset = offset >>> 0
   byteLength = byteLength >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, byteLength, Math.pow(2, 8 * byteLength), 0)
+  if (!noAssert) checkInt(this, value, offset, byteLength, Math.pow(2, 8 * byteLength), 0)
 
   var mul = 1
   var i = 0
   this[offset] = value & 0xFF
-  while (++i < byteLength && (mul *= 0x100))
+  while (++i < byteLength && (mul *= 0x100)) {
     this[offset + i] = (value / mul) >>> 0 & 0xFF
+  }
 
   return offset + byteLength
 }
 
-Buffer.prototype.writeUIntBE = function (value, offset, byteLength, noAssert) {
+Buffer.prototype.writeUIntBE = function writeUIntBE (value, offset, byteLength, noAssert) {
   value = +value
   offset = offset >>> 0
   byteLength = byteLength >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, byteLength, Math.pow(2, 8 * byteLength), 0)
+  if (!noAssert) checkInt(this, value, offset, byteLength, Math.pow(2, 8 * byteLength), 0)
 
   var i = byteLength - 1
   var mul = 1
   this[offset + i] = value & 0xFF
-  while (--i >= 0 && (mul *= 0x100))
+  while (--i >= 0 && (mul *= 0x100)) {
     this[offset + i] = (value / mul) >>> 0 & 0xFF
+  }
 
   return offset + byteLength
 }
 
-Buffer.prototype.writeUInt8 = function (value, offset, noAssert) {
+Buffer.prototype.writeUInt8 = function writeUInt8 (value, offset, noAssert) {
   value = +value
   offset = offset >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, 1, 0xff, 0)
+  if (!noAssert) checkInt(this, value, offset, 1, 0xff, 0)
   if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value)
   this[offset] = value
   return offset + 1
@@ -1368,27 +807,29 @@ function objectWriteUInt16 (buf, value, offset, littleEndian) {
   }
 }
 
-Buffer.prototype.writeUInt16LE = function (value, offset, noAssert) {
+Buffer.prototype.writeUInt16LE = function writeUInt16LE (value, offset, noAssert) {
   value = +value
   offset = offset >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, 2, 0xffff, 0)
+  if (!noAssert) checkInt(this, value, offset, 2, 0xffff, 0)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = value
     this[offset + 1] = (value >>> 8)
-  } else objectWriteUInt16(this, value, offset, true)
+  } else {
+    objectWriteUInt16(this, value, offset, true)
+  }
   return offset + 2
 }
 
-Buffer.prototype.writeUInt16BE = function (value, offset, noAssert) {
+Buffer.prototype.writeUInt16BE = function writeUInt16BE (value, offset, noAssert) {
   value = +value
   offset = offset >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, 2, 0xffff, 0)
+  if (!noAssert) checkInt(this, value, offset, 2, 0xffff, 0)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value >>> 8)
     this[offset + 1] = value
-  } else objectWriteUInt16(this, value, offset, false)
+  } else {
+    objectWriteUInt16(this, value, offset, false)
+  }
   return offset + 2
 }
 
@@ -1399,139 +840,144 @@ function objectWriteUInt32 (buf, value, offset, littleEndian) {
   }
 }
 
-Buffer.prototype.writeUInt32LE = function (value, offset, noAssert) {
+Buffer.prototype.writeUInt32LE = function writeUInt32LE (value, offset, noAssert) {
   value = +value
   offset = offset >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, 4, 0xffffffff, 0)
+  if (!noAssert) checkInt(this, value, offset, 4, 0xffffffff, 0)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset + 3] = (value >>> 24)
     this[offset + 2] = (value >>> 16)
     this[offset + 1] = (value >>> 8)
     this[offset] = value
-  } else objectWriteUInt32(this, value, offset, true)
+  } else {
+    objectWriteUInt32(this, value, offset, true)
+  }
   return offset + 4
 }
 
-Buffer.prototype.writeUInt32BE = function (value, offset, noAssert) {
+Buffer.prototype.writeUInt32BE = function writeUInt32BE (value, offset, noAssert) {
   value = +value
   offset = offset >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, 4, 0xffffffff, 0)
+  if (!noAssert) checkInt(this, value, offset, 4, 0xffffffff, 0)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value >>> 24)
     this[offset + 1] = (value >>> 16)
     this[offset + 2] = (value >>> 8)
     this[offset + 3] = value
-  } else objectWriteUInt32(this, value, offset, false)
+  } else {
+    objectWriteUInt32(this, value, offset, false)
+  }
   return offset + 4
 }
 
-Buffer.prototype.writeIntLE = function (value, offset, byteLength, noAssert) {
+Buffer.prototype.writeIntLE = function writeIntLE (value, offset, byteLength, noAssert) {
   value = +value
   offset = offset >>> 0
   if (!noAssert) {
-    checkInt(this,
-             value,
-             offset,
-             byteLength,
-             Math.pow(2, 8 * byteLength - 1) - 1,
-             -Math.pow(2, 8 * byteLength - 1))
+    checkInt(
+      this, value, offset, byteLength,
+      Math.pow(2, 8 * byteLength - 1) - 1,
+      -Math.pow(2, 8 * byteLength - 1)
+    )
   }
 
   var i = 0
   var mul = 1
   var sub = value < 0 ? 1 : 0
   this[offset] = value & 0xFF
-  while (++i < byteLength && (mul *= 0x100))
+  while (++i < byteLength && (mul *= 0x100)) {
     this[offset + i] = ((value / mul) >> 0) - sub & 0xFF
+  }
 
   return offset + byteLength
 }
 
-Buffer.prototype.writeIntBE = function (value, offset, byteLength, noAssert) {
+Buffer.prototype.writeIntBE = function writeIntBE (value, offset, byteLength, noAssert) {
   value = +value
   offset = offset >>> 0
   if (!noAssert) {
-    checkInt(this,
-             value,
-             offset,
-             byteLength,
-             Math.pow(2, 8 * byteLength - 1) - 1,
-             -Math.pow(2, 8 * byteLength - 1))
+    checkInt(
+      this, value, offset, byteLength,
+      Math.pow(2, 8 * byteLength - 1) - 1,
+      -Math.pow(2, 8 * byteLength - 1)
+    )
   }
 
   var i = byteLength - 1
   var mul = 1
   var sub = value < 0 ? 1 : 0
   this[offset + i] = value & 0xFF
-  while (--i >= 0 && (mul *= 0x100))
+  while (--i >= 0 && (mul *= 0x100)) {
     this[offset + i] = ((value / mul) >> 0) - sub & 0xFF
+  }
 
   return offset + byteLength
 }
 
-Buffer.prototype.writeInt8 = function (value, offset, noAssert) {
+Buffer.prototype.writeInt8 = function writeInt8 (value, offset, noAssert) {
   value = +value
   offset = offset >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, 1, 0x7f, -0x80)
+  if (!noAssert) checkInt(this, value, offset, 1, 0x7f, -0x80)
   if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value)
   if (value < 0) value = 0xff + value + 1
   this[offset] = value
   return offset + 1
 }
 
-Buffer.prototype.writeInt16LE = function (value, offset, noAssert) {
+Buffer.prototype.writeInt16LE = function writeInt16LE (value, offset, noAssert) {
   value = +value
   offset = offset >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, 2, 0x7fff, -0x8000)
+  if (!noAssert) checkInt(this, value, offset, 2, 0x7fff, -0x8000)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = value
     this[offset + 1] = (value >>> 8)
-  } else objectWriteUInt16(this, value, offset, true)
+  } else {
+    objectWriteUInt16(this, value, offset, true)
+  }
   return offset + 2
 }
 
-Buffer.prototype.writeInt16BE = function (value, offset, noAssert) {
+Buffer.prototype.writeInt16BE = function writeInt16BE (value, offset, noAssert) {
   value = +value
   offset = offset >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, 2, 0x7fff, -0x8000)
+  if (!noAssert) checkInt(this, value, offset, 2, 0x7fff, -0x8000)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value >>> 8)
     this[offset + 1] = value
-  } else objectWriteUInt16(this, value, offset, false)
+  } else {
+    objectWriteUInt16(this, value, offset, false)
+  }
   return offset + 2
 }
 
-Buffer.prototype.writeInt32LE = function (value, offset, noAssert) {
+Buffer.prototype.writeInt32LE = function writeInt32LE (value, offset, noAssert) {
   value = +value
   offset = offset >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000)
+  if (!noAssert) checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000)
   if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = value
     this[offset + 1] = (value >>> 8)
     this[offset + 2] = (value >>> 16)
     this[offset + 3] = (value >>> 24)
-  } else objectWriteUInt32(this, value, offset, true)
+  } else {
+    objectWriteUInt32(this, value, offset, true)
+  }
   return offset + 4
 }
 
-Buffer.prototype.writeInt32BE = function (value, offset, noAssert) {
+Buffer.prototype.writeInt32BE = function writeInt32BE (value, offset, noAssert) {
   value = +value
   offset = offset >>> 0
-  if (!noAssert)
-    checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000)
+  if (!noAssert) checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000)
   if (value < 0) value = 0xffffffff + value + 1
   if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value >>> 24)
     this[offset + 1] = (value >>> 16)
     this[offset + 2] = (value >>> 8)
     this[offset + 3] = value
-  } else objectWriteUInt32(this, value, offset, false)
+  } else {
+    objectWriteUInt32(this, value, offset, false)
+  }
   return offset + 4
 }
 
@@ -1542,37 +988,39 @@ function checkIEEE754 (buf, value, offset, ext, max, min) {
 }
 
 function writeFloat (buf, value, offset, littleEndian, noAssert) {
-  if (!noAssert)
+  if (!noAssert) {
     checkIEEE754(buf, value, offset, 4, 3.4028234663852886e+38, -3.4028234663852886e+38)
+  }
   ieee754.write(buf, value, offset, littleEndian, 23, 4)
   return offset + 4
 }
 
-Buffer.prototype.writeFloatLE = function (value, offset, noAssert) {
+Buffer.prototype.writeFloatLE = function writeFloatLE (value, offset, noAssert) {
   return writeFloat(this, value, offset, true, noAssert)
 }
 
-Buffer.prototype.writeFloatBE = function (value, offset, noAssert) {
+Buffer.prototype.writeFloatBE = function writeFloatBE (value, offset, noAssert) {
   return writeFloat(this, value, offset, false, noAssert)
 }
 
 function writeDouble (buf, value, offset, littleEndian, noAssert) {
-  if (!noAssert)
+  if (!noAssert) {
     checkIEEE754(buf, value, offset, 8, 1.7976931348623157E+308, -1.7976931348623157E+308)
+  }
   ieee754.write(buf, value, offset, littleEndian, 52, 8)
   return offset + 8
 }
 
-Buffer.prototype.writeDoubleLE = function (value, offset, noAssert) {
+Buffer.prototype.writeDoubleLE = function writeDoubleLE (value, offset, noAssert) {
   return writeDouble(this, value, offset, true, noAssert)
 }
 
-Buffer.prototype.writeDoubleBE = function (value, offset, noAssert) {
+Buffer.prototype.writeDoubleBE = function writeDoubleBE (value, offset, noAssert) {
   return writeDouble(this, value, offset, false, noAssert)
 }
 
 // copy(targetBuffer, targetStart=0, sourceStart=0, sourceEnd=buffer.length)
-Buffer.prototype.copy = function (target, target_start, start, end) {
+Buffer.prototype.copy = function copy (target, target_start, start, end) {
   var self = this // source
 
   if (!start) start = 0
@@ -1586,16 +1034,17 @@ Buffer.prototype.copy = function (target, target_start, start, end) {
   if (target.length === 0 || self.length === 0) return 0
 
   // Fatal error conditions
-  if (target_start < 0)
+  if (target_start < 0) {
     throw new RangeError('targetStart out of bounds')
+  }
   if (start < 0 || start >= self.length) throw new RangeError('sourceStart out of bounds')
   if (end < 0) throw new RangeError('sourceEnd out of bounds')
 
   // Are we oob?
-  if (end > this.length)
-    end = this.length
-  if (target.length - target_start < end - start)
+  if (end > this.length) end = this.length
+  if (target.length - target_start < end - start) {
     end = target.length - target_start + start
+  }
 
   var len = end - start
 
@@ -1611,7 +1060,7 @@ Buffer.prototype.copy = function (target, target_start, start, end) {
 }
 
 // fill(value, start=0, end=buffer.length)
-Buffer.prototype.fill = function (value, start, end) {
+Buffer.prototype.fill = function fill (value, start, end) {
   if (!value) value = 0
   if (!start) start = 0
   if (!end) end = this.length
@@ -1645,7 +1094,7 @@ Buffer.prototype.fill = function (value, start, end) {
  * Creates a new `ArrayBuffer` with the *copied* memory of the buffer instance.
  * Added in Node 0.12. Only available in browsers that support ArrayBuffer.
  */
-Buffer.prototype.toArrayBuffer = function () {
+Buffer.prototype.toArrayBuffer = function toArrayBuffer () {
   if (typeof Uint8Array !== 'undefined') {
     if (Buffer.TYPED_ARRAY_SUPPORT) {
       return (new Buffer(this)).buffer
@@ -1669,7 +1118,7 @@ var BP = Buffer.prototype
 /**
  * Augment a Uint8Array *instance* (not the Uint8Array class!) with Buffer methods
  */
-Buffer._augment = function (arr) {
+Buffer._augment = function _augment (arr) {
   arr.constructor = Buffer
   arr._isBuffer = true
 
@@ -1687,6 +1136,7 @@ Buffer._augment = function (arr) {
   arr.toJSON = BP.toJSON
   arr.equals = BP.equals
   arr.compare = BP.compare
+  arr.indexOf = BP.indexOf
   arr.copy = BP.copy
   arr.slice = BP.slice
   arr.readUIntLE = BP.readUIntLE
@@ -1874,8 +1324,7 @@ function base64ToBytes (str) {
 
 function blitBuffer (src, dst, offset, length) {
   for (var i = 0; i < length; i++) {
-    if ((i + offset >= dst.length) || (i >= src.length))
-      break
+    if ((i + offset >= dst.length) || (i >= src.length)) break
     dst[i + offset] = src[i]
   }
   return i
@@ -1889,7 +1338,7 @@ function decodeUtf8Char (str) {
   }
 }
 
-},{"base64-js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js","ieee754":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js","is-array":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/is-array/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js":[function(require,module,exports){
+},{"base64-js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js","ieee754":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js","is-array":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/is-array/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js":[function(require,module,exports){
 var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 ;(function (exports) {
@@ -2015,7 +1464,7 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	exports.fromByteArray = uint8ToBase64
 }(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js":[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js":[function(require,module,exports){
 exports.read = function(buffer, offset, isLE, mLen, nBytes) {
   var e, m,
       eLen = nBytes * 8 - mLen - 1,
@@ -2101,7 +1550,7 @@ exports.write = function(buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/node_modules/is-array/index.js":[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/node_modules/is-array/index.js":[function(require,module,exports){
 
 /**
  * isArray
@@ -2136,7 +1585,7 @@ module.exports = isArray || function (val) {
   return !! val && '[object Array]' == str.call(val);
 };
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/events/events.js":[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/events/events.js":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2439,7 +1888,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js":[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js":[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -2464,12 +1913,12 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/isarray/index.js":[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/isarray/index.js":[function(require,module,exports){
 module.exports = Array.isArray || function (arr) {
   return Object.prototype.toString.call(arr) == '[object Array]';
 };
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js":[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/process/browser.js":[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2529,10 +1978,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/duplex.js":[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/duplex.js":[function(require,module,exports){
 module.exports = require("./lib/_stream_duplex.js")
 
-},{"./lib/_stream_duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js":[function(require,module,exports){
+},{"./lib/_stream_duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js":[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2625,7 +2074,7 @@ function forEach (xs, f) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_readable":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js","./_stream_writable":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js":[function(require,module,exports){
+},{"./_stream_readable":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js","./_stream_writable":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/process/browser.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2673,7 +2122,7 @@ PassThrough.prototype._transform = function(chunk, encoding, cb) {
   cb(null, chunk);
 };
 
-},{"./_stream_transform":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js":[function(require,module,exports){
+},{"./_stream_transform":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js":[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3628,7 +3077,7 @@ function indexOf (xs, x) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js","buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/index.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/events/events.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js","isarray":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/isarray/index.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js","string_decoder/":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/string_decoder/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/browser-resolve/empty.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js":[function(require,module,exports){
+},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/process/browser.js","buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/index.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/events/events.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js","isarray":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/isarray/index.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js","string_decoder/":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/string_decoder/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/browser-resolve/empty.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3839,7 +3288,7 @@ function done(stream, er) {
   return stream.push(null);
 }
 
-},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js":[function(require,module,exports){
+},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js":[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -4320,7 +3769,7 @@ function endWritable(stream, state, cb) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js","buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/index.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js":[function(require,module,exports){
+},{"./_stream_duplex":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/process/browser.js","buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/index.js","core-util-is":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/node_modules/core-util-is/lib/util.js":[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -4430,10 +3879,10 @@ function objectToString(o) {
   return Object.prototype.toString.call(o);
 }
 }).call(this,require("buffer").Buffer)
-},{"buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/passthrough.js":[function(require,module,exports){
+},{"buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/passthrough.js":[function(require,module,exports){
 module.exports = require("./lib/_stream_passthrough.js")
 
-},{"./lib/_stream_passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/readable.js":[function(require,module,exports){
+},{"./lib/_stream_passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/readable.js":[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = require('stream');
 exports.Readable = exports;
@@ -4442,13 +3891,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","./lib/_stream_passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js","./lib/_stream_readable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js","./lib/_stream_transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js","./lib/_stream_writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/transform.js":[function(require,module,exports){
+},{"./lib/_stream_duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_duplex.js","./lib/_stream_passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_passthrough.js","./lib/_stream_readable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_readable.js","./lib/_stream_transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js","./lib/_stream_writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/transform.js":[function(require,module,exports){
 module.exports = require("./lib/_stream_transform.js")
 
-},{"./lib/_stream_transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/writable.js":[function(require,module,exports){
+},{"./lib/_stream_transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_transform.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/writable.js":[function(require,module,exports){
 module.exports = require("./lib/_stream_writable.js")
 
-},{"./lib/_stream_writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/stream-browserify/index.js":[function(require,module,exports){
+},{"./lib/_stream_writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/lib/_stream_writable.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4577,7 +4026,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/events/events.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js","readable-stream/duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/duplex.js","readable-stream/passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/passthrough.js","readable-stream/readable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/readable.js","readable-stream/transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/transform.js","readable-stream/writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/readable-stream/writable.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/string_decoder/index.js":[function(require,module,exports){
+},{"events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/events/events.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js","readable-stream/duplex.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/duplex.js","readable-stream/passthrough.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/passthrough.js","readable-stream/readable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/readable.js","readable-stream/transform.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/transform.js","readable-stream/writable.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/readable-stream/writable.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/string_decoder/index.js":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4800,14 +4249,14 @@ function base64DetectIncompleteChar(buffer) {
   this.charLength = this.charReceived ? 3 : 0;
 }
 
-},{"buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/buffer/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/support/isBufferBrowser.js":[function(require,module,exports){
+},{"buffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/buffer/index.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/support/isBufferBrowser.js":[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/util.js":[function(require,module,exports){
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/util.js":[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -5397,7 +4846,586 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/util/support/isBufferBrowser.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/watchify/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/src/boombap.js":[function(require,module,exports){
+},{"./support/isBuffer":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/support/isBufferBrowser.js","_process":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/process/browser.js","inherits":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/index.js":[function(require,module,exports){
+var events = require('events');
+var inherits = require('util').inherits
+var bopper = require('bopper');
+var ditty = require('ditty');
+
+var loadTime = new Date().valueOf();
+
+function Dilla (audioContext, options) {
+
+  if (!(this instanceof Dilla)){
+    return new Dilla(audioContext, options);
+  }
+
+  events.EventEmitter.call(this);
+
+  options = options || {};
+
+  this.upstartWait = options.upstartWait || 250;
+  this.tempo = options.tempo || 120;
+  this.beatsPerBar = options.beatsPerBar || 4;
+  this.loopLength = options.loopLength || 2;
+  this._position = '0.0.00';
+  
+  this.context = audioContext;
+  this.clock = bopper(this.context);
+  this.scheduler = ditty();
+
+  this.clock.setTempo(this.tempo);
+  this.clock.on('data', updatePositionFromClock.bind(this));
+  this.clock.pipe(this.scheduler).on('data', emitStep.bind(this));
+}
+
+inherits(Dilla, events.EventEmitter);
+
+function updatePositionFromClock (step) {
+  var position = this.getPositionFromTime(step.time);
+  if (this._position !== position) {
+    this._position = position;
+    this.emit('tick', { 'position': this._position, 'context': this.context });
+  }
+}
+
+function getPositionFromTime (time) {
+  var offset = (this.clock._state.cycleLength * this.clock._state.preCycle) * 1;
+  var position = this.clock.getPositionAt(time - offset);
+  return this.getPositionFromClockPosition(position);
+}
+
+function getPositionFromClockPosition (position) {
+  if (position < 0) return '0.0.00';
+  var beatsPerLoop = this.loopLength * this.beatsPerBar;
+  var loops = Math.floor(position / beatsPerLoop) || 0;
+  position = position - (loops * beatsPerLoop);
+  var bars = Math.floor(position / this.beatsPerBar);
+  position = position - (bars * this.beatsPerBar);
+  var beats = Math.floor(position);
+  position = position - beats;
+  var ticks = Math.floor(position * 96) + 1;
+  if (ticks < 10) ticks = '0' + ticks;
+  return ++bars + '.' + ++beats + '.' + ticks;
+}
+
+function getClockPositionFromPosition (position) {
+  var parts = position.split('.');
+  var bars = parseInt(parts[0], 10) - 1;
+  var beats = parseInt(parts[1], 10) - 1;
+  var ticks = parseInt(parts[2], 10) - 1;
+  return (bars * this.beatsPerBar) + beats + (ticks / 96);
+}
+
+function getPositionWithOffset (position, offset) {
+  if (!offset) return position;
+  var clockPosition = this.getClockPositionFromPosition(position);
+  var clockOffset = offset / 96;
+  return this.getPositionFromClockPosition(clockPosition + clockOffset);
+}
+
+function getDurationFromTicks (ticks) {
+  return (1 / 96) * ticks;
+}
+
+function emitStep (step) {
+  var offset = step.offset = (this.clock._state.cycleLength * this.clock._state.preCycle) * 1;
+  step.time = step.time + offset;
+  step.clockPosition = step.position;
+  step.position = step.event === 'start' ? step.args[0] : this.getPositionWithOffset(step.args[0], step.args[1]);
+  if (step.event === 'stop'  && step.position === step.args[0]) return;
+  step.context = this.context;
+  this.emit('step', step);
+}
+
+function set (id, events) {
+  var self = this;
+  events = events.filter(function (event) {
+    var parts = event[0].split('.');
+    var bars = parseInt(parts[0], 10) - 1;
+    var beats = parseInt(parts[1], 10) - 1;
+    var ticks = parseInt(parts[2], 10) - 1;
+    if (ticks >= 96 || beats >= self.beatsPerBar || bars >= self.loopLength) {
+      console.warn('Event is out of bounds: ' + event[0], event);
+      return false; 
+    }
+    return true;
+  }).map(function (event) {
+    return [self.getClockPositionFromPosition(event[0]), self.getDurationFromTicks(event[1]), null, null, event[0], event[1]].concat(event.slice(2));
+  });
+  this.scheduler.set(id, events, this.beatsPerBar * this.loopLength);
+}
+
+function get (id) {
+  return this.scheduler.get(id);
+}
+
+function channels () {
+  return this.scheduler.getIds();
+}
+
+function clear (id) {
+  var self = this;
+  if (id) {
+    this.set(id, []);
+  }
+  else {
+    this.scheduler.getIds().forEach(function (id) {
+      self.clear(id);
+    });
+  }
+}
+
+function start () {
+  var now = new Date().valueOf();
+  var waited = now - loadTime;
+  if (waited < this.upstartWait) {
+    return setTimeout(start.bind(this), this.upstartWait - waited);
+  }
+
+  if (!this.clock._state.playing) {
+    this.clock.start();
+  }
+}
+
+function pause () {
+  if (this.clock._state.playing) {
+    this.clock.stop();
+  }
+}
+
+function stop () {
+  if (this.clock._state.playing) {
+    this.clock.stop();
+    this.clock.setPosition(0);
+    this._position = '0.0.00';
+  }
+}
+
+function position () {
+  return this._position;
+}
+
+function setPosition (position) {
+  this.clock.setPosition(this.getClockPositionFromPosition(position));
+}
+
+function setTempo (tempo) {
+  this.clock.setTempo(tempo);
+}
+
+function setBeatsPerBar (beats) {
+  this.beatsPerBar = beats;
+}
+
+function setLoopLength (bars) {
+  this.loopLength = bars;
+}
+
+var proto = Dilla.prototype;
+[set, get, clear, start, stop, pause, getPositionFromTime, getPositionFromClockPosition, setTempo, setPosition, getClockPositionFromPosition, getDurationFromTicks, getPositionWithOffset, setBeatsPerBar, setLoopLength, channels, position].forEach(function (fn) {
+  proto[fn.name] = fn;
+});
+
+module.exports = Dilla;
+},{"bopper":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/index.js","ditty":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/ditty/index.js","events":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/events/events.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/index.js":[function(require,module,exports){
+var Stream = require('stream')
+var Event = require('geval')
+
+var inherits = require('util').inherits
+
+module.exports = Bopper
+
+function Bopper(audioContext){
+  if (!(this instanceof Bopper)){
+    return new Bopper(audioContext)
+  }
+
+  var self = this
+
+  Stream.call(this)
+  this.readable = true
+  this.writable = false
+
+  this.context = audioContext
+  var processor = this._processor = audioContext.createScriptProcessor(512, 1, 1)
+
+  var handleTick = bopperTick.bind(this)
+  this._processor.onaudioprocess = handleTick
+
+  var tempo = 120
+  var cycleLength = (1 / audioContext.sampleRate) * this._processor.bufferSize
+
+  this._state = {
+    lastTo: 0,
+    lastEndTime: 0,
+    playing: false,
+    bpm: tempo,
+    beatDuration: 60 / tempo,
+    increment: (tempo / 60) * cycleLength,
+    cycleLength: cycleLength,
+    preCycle: 5,
+  }
+
+  // frp version
+  this.onSchedule = Event(function(broadcast){
+    self.on('data', broadcast)
+  })
+
+  processor.connect(audioContext.destination)
+}
+
+inherits(Bopper, Stream)
+
+var proto = Bopper.prototype
+
+
+proto.start = function(){
+  this._state.playing = true
+  this.emit('start')
+}
+
+proto.stop = function(){
+  this._state.playing = false
+  this.emit('stop')
+}
+
+proto.setTempo = function(tempo){
+  var bps = tempo/60
+  var state = this._state
+  state.beatDuration = 60/tempo
+  state.increment = bps * state.cycleLength
+  state.bpm = tempo
+  this.emit('tempo', state.bpm)
+}
+
+proto.getTempo = function(){
+  return this._state.bpm
+}
+
+proto.isPlaying = function(){
+  return this._state.playing
+}
+
+proto.setPosition = function(position){
+  this._state.lastTo = parseFloat(position)
+}
+
+proto.setSpeed = function(multiplier){
+  var state = this._state
+
+  multiplier = parseFloat(multiplier) || 0
+
+  var tempo = state.bpm * multiplier
+  var bps = tempo/60
+
+  state.beatDuration = 60/tempo
+  state.increment = bps * state.cycleLength
+}
+
+
+proto.getPositionAt = function(time){
+  var state = this._state
+  var delta = state.lastEndTime - time
+  return state.lastTo - (delta / state.beatDuration)
+}
+
+proto.getTimeAt = function(position){
+  var state = this._state
+  var positionOffset = this.getCurrentPosition() - position
+  return this.context.currentTime - (positionOffset * state.beatDuration)
+}
+
+proto.getCurrentPosition = function(){
+  return this.getPositionAt(this.context.currentTime)
+}
+
+proto.getNextScheduleTime = function(){
+  var state = this._state
+  return state.lastEndTime
+}
+
+proto.getBeatDuration = function(){
+  var state = this._state
+  return state.beatDuration
+}
+
+
+proto._schedule = function(time, from, to){
+  var state = this._state
+  var duration = (to - from) * state.beatDuration
+  this.emit('data', {
+    from: from,
+    to: to,
+    time: time,
+    duration: duration,
+    beatDuration: state.beatDuration
+  })
+}
+
+function bopperTick(e){
+  var state = this._state
+  var currentTime = this.context.currentTime
+
+  var endTime = this.context.currentTime + (state.cycleLength * state.preCycle)
+  var time = state.lastEndTime
+  state.lastEndTime = endTime
+
+  if (state.playing){
+    var duration = endTime - time
+    var length = duration / state.beatDuration
+
+    var from = state.lastTo
+    var to = from + length
+    state.lastTo = to
+
+    // skip if getting behind
+    if ((currentTime - (state.cycleLength*2)) < time){
+      this._schedule(time, from, to)
+    }
+  }
+
+}
+},{"geval":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/source.js","stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/event.js":[function(require,module,exports){
+module.exports = Event
+
+function Event() {
+    var listeners = []
+
+    return { broadcast: broadcast, listen: event }
+
+    function broadcast(value) {
+        for (var i = 0; i < listeners.length; i++) {
+            listeners[i](value)
+        }
+    }
+
+    function event(listener) {
+        listeners.push(listener)
+
+        return removeListener
+
+        function removeListener() {
+            var index = listeners.indexOf(listener)
+            if (index !== -1) {
+                listeners.splice(index, 1)
+            }
+        }
+    }
+}
+
+},{}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/source.js":[function(require,module,exports){
+var Event = require('./event.js')
+
+module.exports = Source
+
+function Source(broadcaster) {
+    var tuple = Event()
+
+    broadcaster(tuple.broadcast)
+
+    return tuple.listen
+}
+
+},{"./event.js":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/bopper/node_modules/geval/event.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/dilla/node_modules/ditty/index.js":[function(require,module,exports){
+module.exports = Ditty
+
+var Stream = require('stream')
+var inherits = require('util').inherits
+
+function Ditty(){
+
+  if (!(this instanceof Ditty)){
+    return new Ditty()
+  }
+
+  Stream.call(this)
+
+  this.readable = true
+  this.writable = true
+
+  this._state = {
+    loops: {},
+    lengths: {},
+    ids: [],
+    queue: []
+  }
+}
+
+inherits(Ditty, Stream)
+
+var proto = Ditty.prototype
+
+proto.set = function(id, events, length){
+  var state = this._state
+  if (events){
+    if (!state.loops[id]){
+      state.ids.push(id)
+    }
+    state.loops[id] = events
+    state.lengths[id] = length || 8
+  } else {
+    var index = state.ids.indexOf(id)
+    if (~index){
+      state.ids.splice(index, 1)
+    }
+    state.loops[id] = null
+  }
+
+  if (state.loops[id]){
+    this.emit('change', {
+      id: id,
+      events: state.loops[id],
+      length: state.lengths[id]
+    })
+  } else {
+    this.emit('change', {
+      id: id
+    })
+  }
+}
+
+proto.get = function(id){
+  return this._state.loops[id]
+}
+
+proto.getLength = function(id){
+  return this._state.lengths[id]
+}
+
+proto.getIds = function(){
+  return this._state.ids
+}
+
+proto.getDescriptors = function(){
+  var state = this._state
+  var result = []
+  for (var i=0;i<state.ids.length;i++){
+    var id = state.ids[i]
+    if (state.loops[id]){
+      result.push({
+        id: id, 
+        length: state.lengths[id], 
+        events: state.loops[id]
+      })
+    }
+  }
+  return result
+}
+
+proto.update = function(descriptor){
+  this.set(descriptor.id, descriptor.events, descriptor.length)
+}
+
+proto.push = function(data){
+  this.emit('data', data)
+}
+
+proto.write = function(obj){
+  this._transform(obj)
+}
+
+proto._transform = function(obj){
+  var begin = window.performance.now()
+  var endAt = begin + (obj.duration * 900)
+
+  var state = this._state
+  var from = obj.from
+  var to = obj.to
+  var time = obj.time
+  var nextTime = obj.time + obj.duration
+  var beatDuration = obj.beatDuration
+  var ids = state.ids
+  var queue = state.queue
+  var localQueue = []
+
+  for (var i=queue.length-1;i>=0;i--){
+    var item = queue[i]
+    if (to > item.position || shouldSendImmediately(item, state.loops[item.id])){
+      if (to > item.position){
+        var delta = (item.position - from) * beatDuration
+        item.time = time + delta
+      } else {
+        item.time = time
+        item.position = from
+      }
+      queue.splice(i, 1)
+      this.push(item)
+    }
+  }
+
+  for (var i=0;i<ids.length;i++){
+
+    var id = ids[i]
+    var events = state.loops[id]
+    var loopLength = state.lengths[id]
+
+    for (var j=0;j<events.length;j++){
+
+      var event = events[j]
+      var startPosition = getAbsolutePosition(event[0], from, loopLength)
+      var endPosition = startPosition + event[1]
+
+      if (startPosition >= from && startPosition < to){
+
+        var delta = (startPosition - from) * beatDuration
+        var duration = event[1] * beatDuration
+        var startTime = time + delta
+        var endTime = startTime + duration
+        
+        localQueue.push({
+          id: id,
+          event: 'start',
+          position: startPosition,
+          args: event.slice(4),
+          time: startTime
+        })
+
+        localQueue.push({
+          id: id,
+          event: 'stop',
+          position: endPosition,
+          args: event.slice(4),
+          time: endTime
+        })
+      }
+    }
+  }
+
+  // ensure events stream in time sequence
+  localQueue.sort(compare)
+  for (var i=0;i<localQueue.length;i++){
+    var item = localQueue[i]
+    if (item.time < nextTime){
+      if (window.performance.now() < endAt){
+        this.push(item)
+      }
+    } else {
+      // queue event for later
+      queue.push(item)
+    }
+  }
+}
+
+function compare(a,b){
+  return a.time-b.time
+}
+
+function getAbsolutePosition(pos, start, length){
+  pos = pos % length
+  var micro = start % length
+  var position = start+pos-micro
+  if (position < start){
+    return position + length
+  } else {
+    return position
+  }
+}
+
+function shouldSendImmediately(message, loop){
+  return message.event === 'stop' && (!loop || !loop.length)
+}
+},{"stream":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/stream-browserify/index.js","util":"/Users/adamrenklint/Projects/dilla-boombap-tutorial/node_modules/browserify/node_modules/util/util.js"}],"/Users/adamrenklint/Projects/dilla-boombap-tutorial/src/boombap.js":[function(require,module,exports){
 // Set up the dilla object
 var Dilla = require('dilla');
 var audioContext = new AudioContext();
@@ -5431,7 +5459,8 @@ function loadSound (name, done) {
 var soundNames = [
   'kick', 'snare', 'hihat',
   'sound1', 'sound2', 'sound3', 'sound4',
-  'plong1', 'plong2'
+  'plong1', 'plong2',
+  'bass'
 ];
 
 function loadNextSound () {
@@ -5448,7 +5477,8 @@ dilla.set('kick', [
   ['1.1.01'],
   ['1.1.51', null, 0.8],
   ['1.2.88'],
-  ['2.1.01', null, 0.7],
+  ['1.4.72', null, 0.7],
+  ['2.1.51', null, 0.7],
   ['2.3.51', null, 0.8],
   ['2.3.88']
 ]);
@@ -5492,9 +5522,16 @@ dilla.set('plong1', [
 ]);
 
 dilla.set('plong2', [
-  ['2.1.01', 95],
-  ['2.1.48', 150, 0.5],
+  ['2.1.01', 95, 0.6],
+  ['2.1.48', 150, 0.8],
   ['2.3.48', 150]
+]);
+
+dilla.set('bass', [
+  ['1.1.01', 95, 1, 0.5],
+  ['2.1.01', 40, 0.6, 0.75],
+  ['2.1.48', 40, 0.6, 0.75],
+  ['2.3.48', 96, 0.6, 0.75]
 ]);
 
 dilla.on('step', playSound);
@@ -5515,6 +5552,7 @@ function playSound (step) {
   if (step.event === 'start') {
     var source = audioContext.createBufferSource();
     source.buffer = sounds[step.id];
+    source.playbackRate.value = step.args[3] || 1;
     
     var gainNode = audioContext.createGain();
     gainNode.gain.value = step.args[2] || 1;
@@ -5526,7 +5564,7 @@ function playSound (step) {
   }
   else if (step.event === 'stop') {
     var source = sources[step.id + step.args[0]];
-    if (source && step.position !== step.args[0]) {
+    if (source) {
       sources[step.id + step.args[0]] = null;
       source.stop(step.time);
     }
