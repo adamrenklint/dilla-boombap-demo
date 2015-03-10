@@ -40,19 +40,16 @@ function loadNextSound () {
   loadSound(soundName, loadNextSound);
 }
 
-loadNextSound();
-
-
 function start () {
   dilla.start();
 }
 
 dilla.set('kick', [
   ['1.1.01'],
-  ['1.1.51'],
+  ['1.1.51', null, 0.8],
   ['1.2.88'],
-  ['2.1.01'],
-  ['2.3.51'],
+  ['2.1.01', null, 0.7],
+  ['2.3.51', null, 0.8],
   ['2.3.88']
 ]);
 
@@ -64,46 +61,46 @@ dilla.set('snare', [
 ]);
 
 dilla.set('hihat', [
-  ['1.1.01'],
-  ['1.2.01'],
-  ['1.3.01'],
-  ['1.4.01'],
-  ['1.4.53'],
-  ['2.1.01'],
-  ['2.2.01'],
-  ['2.3.01'],
-  ['2.4.01'],
-  ['2.4.53']
+  ['1.1.01', null, 0.7],
+  ['1.2.01', null, 0.8],
+  ['1.3.01', null, 0.7],
+  ['1.4.01', null, 0.8],
+  ['1.4.53', null, 0.6],
+  ['2.1.01', null, 0.7],
+  ['2.2.01', null, 0.8],
+  ['2.3.01', null, 0.7],
+  ['2.4.01', null, 0.8],
+  ['2.4.53', null, 0.5]
 ]);
 
 dilla.set('sound1', [
-  ['1.3.25', 88]
+  ['1.3.25', 88, 0.6]
 ]);
 
 dilla.set('sound2', [
-  ['1.2.50', 70]
+  ['1.2.50', 70, 0.6]
 ]);
 
 dilla.set('sound4', [
-  ['1.2.05', 45]
+  ['1.2.05', 45, 0.6]
 ]);
 
 dilla.set('plong1', [
   ['1.1.01', 95],
-  ['1.4.72', 24],
-  ['2.3.25', 24]
+  ['1.4.72', 24, 0.5],
+  ['2.3.25', 24, 0.5]
 ]);
 
 dilla.set('plong2', [
   ['2.1.01', 95],
-  ['2.1.48', 150],
+  ['2.1.48', 150, 0.5],
   ['2.3.48', 150]
 ]);
 
 dilla.on('step', playSound);
 
 var compressor = audioContext.createDynamicsCompressor();
-compressor.threshold.value = -10;
+compressor.threshold.value = -15;
 compressor.knee.value = 30;
 compressor.ratio.value = 12;
 compressor.reduction.value = -20;
@@ -120,37 +117,20 @@ function playSound (step) {
     source.buffer = sounds[step.id];
     
     var gainNode = audioContext.createGain();
-    // var gain = this.gain;
-    // if (note.gain) gain = gain * note.gain;
-    gainNode.gain.value = step.id === 'kick' || step.id === 'snare' ? 1 : 0.7;
+    gainNode.gain.value = step.args[2] || 1;
     source.connect(gainNode);
     gainNode.connect(compressor);
-    // source.connect(audioContext.destination);
-
-    // if (step.id === 'hihat') {
-    // //   // source.connect(compressor);
-    //   source.connect(bitcrushNode);
-    //   bitcrushNode.connect(audioContext.destination);  
-    // //   source.connect(audioContext.destination);
-    // } else {
-    // source.connect(audioContext.destination);
-    // source.connect(compressor);
-    // }
-    
-
-    // source.connect(audioContext.destination);
-    // self.playingNote = note;  
     
     source.start(step.time);
-
     sources[step.id + step.args[0]] = source;
-    // console.log(step.id + step.args[0])
   }
   else if (step.event === 'stop') {
     var source = sources[step.id + step.args[0]];
-    if (source) {
+    if (source && step.position !== step.args[0]) {
       sources[step.id + step.args[0]] = null;
       source.stop(step.time);
     }
   }
 }
+
+loadNextSound();
