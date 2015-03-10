@@ -122,10 +122,10 @@ function playSound (step) {
     var gainNode = audioContext.createGain();
     // var gain = this.gain;
     // if (note.gain) gain = gain * note.gain;
-    // gainNode.gain.value = step.id === 'hihat' ? 0.7 : 1;
-    // source.connect(gainNode);
-    // gainNode.connect(compressor);
-    source.connect(audioContext.destination);
+    gainNode.gain.value = step.id === 'kick' || step.id === 'snare' ? 1 : 0.7;
+    source.connect(gainNode);
+    gainNode.connect(compressor);
+    // source.connect(audioContext.destination);
 
     // if (step.id === 'hihat') {
     // //   // source.connect(compressor);
