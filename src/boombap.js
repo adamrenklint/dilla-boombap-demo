@@ -37,8 +37,14 @@ var soundNames = [
 
 function loadNextSound () {
   var soundName = soundNames.shift();
-  if (!soundName) return dilla.start();
+  if (!soundName) return start();
   loadSound(soundName, loadNextSound);
+}
+
+function start () {
+  var loading = document.getElementById('loading');
+  loading.parentNode.removeChild(loading);
+  dilla.start();
 }
 
 dilla.on('step', playSound);
