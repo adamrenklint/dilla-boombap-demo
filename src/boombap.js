@@ -79,19 +79,34 @@ function playSound (step) {
     source.buffer = sounds[step.id];
     source.playbackRate.value = step.args[3] || 1;
 
-    var gainNode = audioContext.createGain();
-    gainNode.gain.value = step.args[2] || 1;
+    var gainNode = source.gainNode = audioContext.createGain();
+    var gainVolume = step.args[2] || 1;
+
     source.connect(gainNode);
     gainNode.connect(compressor);
 
-    source.start(step.time);
+    if (step.id === 'bass') {
+      source.gainNode.gain.setValueAtTime(0, step.time);
+      source.gainNode.gain.linearRampToValueAtTime(gainVolume, step.time + 0.01);  
+    }
+    else {
+      gainNode.gain.value = gainVolume;
+    }
+   
+    source.start(step.time); 
     sources[step.id + step.args[0]] = source;
   }
   else if (step.event === 'stop') {
     var source = sources[step.id + step.args[0]];
     if (source) {
       sources[step.id + step.args[0]] = null;
-      source.stop(step.time);
+      if (step.id === 'bass') {
+        var gainVolume = step.args[2] || 1;
+        source.gainNode.gain.setValueAtTime(gainVolume, step.time);
+        source.gainNode.gain.linearRampToValueAtTime(0, step.time + 0.01);  
+      } else {
+        source.stop(step.time);  
+      }
     }
   }
 }
@@ -105,16 +120,6 @@ dilla.set('kick', [
   ['2.1.51', null, 0.7],
   ['2.3.51', null, 0.8],
   ['2.3.88']
-]);
-
-dilla.set('bass', [
-  ['1.1.01', 60, 1, 0.55],
-  ['1.2.72', 15, 0.7, 0.55],
-  ['1.3.02', 40, 1, 0.55],
-  ['1.4.01', 40, 0.8, 0.64],
-  ['1.4.51', 100, 1, 0.74],
-  ['2.3.51', 60, 1, 0.46],
-  ['2.4.51', 40, 1, 0.52]
 ]);
 
 dilla.set('snare', [
@@ -164,6 +169,16 @@ dilla.set('plong1', [
 dilla.set('plong2', [
   ['1.4.90', 60, 0.4],
   ['2.1.52', 60, 0.7]
+]);
+
+dilla.set('bass', [
+  ['1.1.01', 60, 0.8, 0.55],
+  ['1.2.72', 15, 0.5, 0.55],
+  ['1.3.02', 40, 0.8, 0.55],
+  ['1.4.01', 40, 0.6, 0.64],
+  ['1.4.51', 100, 0.8, 0.74],
+  ['2.3.51', 60, 0.8, 0.46],
+  ['2.4.51', 40, 0.8, 0.52]
 ]);
 
 loadNextSound();
