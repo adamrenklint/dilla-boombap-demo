@@ -65,7 +65,7 @@ reverb.time = 1;
 reverb.wet.value = 0.1;
 reverb.dry.value = 1;
 reverb.filterType = 'highpass'
-reverb.cutoff.value = 1000 //Hz 
+reverb.cutoff.value = 1000 //Hz
 reverb.connect(audioContext.destination);
 
 compressor.connect(reverb);
@@ -73,17 +73,17 @@ compressor.connect(reverb);
 var sources = {};
 
 function playSound (step) {
-  
+
   if (step.event === 'start') {
     var source = audioContext.createBufferSource();
     source.buffer = sounds[step.id];
     source.playbackRate.value = step.args[3] || 1;
-    
+
     var gainNode = audioContext.createGain();
     gainNode.gain.value = step.args[2] || 1;
     source.connect(gainNode);
     gainNode.connect(compressor);
-    
+
     source.start(step.time);
     sources[step.id + step.args[0]] = source;
   }
@@ -105,6 +105,16 @@ dilla.set('kick', [
   ['2.1.51', null, 0.7],
   ['2.3.51', null, 0.8],
   ['2.3.88']
+]);
+
+dilla.set('bass', [
+  ['1.1.01', 60, 1, 0.55],
+  ['1.2.72', 15, 0.7, 0.55],
+  ['1.3.02', 40, 1, 0.55],
+  ['1.4.01', 40, 0.8, 0.64],
+  ['1.4.51', 100, 1, 0.74],
+  ['2.3.51', 60, 1, 0.46],
+  ['2.4.51', 40, 1, 0.52]
 ]);
 
 dilla.set('snare', [
@@ -155,12 +165,5 @@ dilla.set('plong2', [
   ['1.4.90', 60, 0.4],
   ['2.1.52', 60, 0.7]
 ]);
-
-// dilla.set('bass', [
-//   ['1.1.01', 93, 1, 0.5],
-//   ['2.1.01', 40, 0.6, 0.75],
-//   ['2.1.48', 40, 0.6, 0.75],
-//   ['2.3.48', 93, 0.6, 0.5]
-// ]);
 
 loadNextSound();
