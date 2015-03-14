@@ -11,9 +11,11 @@ function draw () {
   position.innerText = dilla.position();
   window.requestAnimationFrame(draw);
 }
-draw();
 
+// Object to hold our sound buffers
 var sounds = {};
+
+// Load a sound and make it playable buffer
 function loadSound (name, done) {
   var request = new XMLHttpRequest();
   request.open('GET', 'sounds/' + name + '.wav', true);
@@ -24,10 +26,10 @@ function loadSound (name, done) {
       done();
     });
   }
-
   request.send();
 }
 
+// The names of the sounds we'll be using
 var soundNames = [
   'kick', 'snare', 'hihat',
   'sound1', 'sound2', 'sound3', 'sound4',
@@ -35,21 +37,22 @@ var soundNames = [
   'bass'
 ];
 
+// Load all sounds, and then start the playback
 function loadNextSound () {
   var soundName = soundNames.shift();
   if (!soundName) return start();
   loadSound(soundName, loadNextSound);
 }
 
+// Start playback and drawing the current position
 function start () {
   var loading = document.getElementById('loading');
   loading.parentNode.removeChild(loading);
+  draw();
   dilla.start();
 }
 
-dilla.on('step', playSound);
-
-// master compressor
+// Add master compressor
 var compressor = audioContext.createDynamicsCompressor();
 compressor.threshold.value = -15;
 compressor.knee.value = 30;
@@ -58,7 +61,7 @@ compressor.reduction.value = -20;
 compressor.attack.value = 0;
 compressor.release.value = 0.25;
 
-// master reverb
+// Add master reverb
 var Reverb = require('soundbank-reverb')
 var reverb = Reverb(audioContext)
 reverb.time = 1;
@@ -66,13 +69,17 @@ reverb.wet.value = 0.1;
 reverb.dry.value = 1;
 reverb.filterType = 'highpass'
 reverb.cutoff.value = 1000 //Hz
+
+// Connect them to our output
+compressor.connect(reverb);
 reverb.connect(audioContext.destination);
 
-compressor.connect(reverb);
-
+// Object to hold reference to our sound buffer
+// sources, so we can fade out or stop playback
 var sources = {};
 
-function playSound (step) {
+// The most important function, plays or stops a sound buffer
+function onStep (step) {
 
   if (step.event === 'start') {
     var source = audioContext.createBufferSource();
@@ -111,6 +118,10 @@ function playSound (step) {
   }
 }
 
+// Attach the onStep callback to the "step" event
+dilla.on('step', onStep);
+
+// The notes for our kick
 dilla.set('kick', [
   ['1.1.01'],
   ['1.1.51', null, 0.8],
@@ -176,4 +187,5 @@ dilla.set('bass', [
   ['2.4.51', 40, 0.8, 0.52]
 ]);
 
+// Start loading the sounds, sets it all off
 loadNextSound();
