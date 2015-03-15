@@ -2,24 +2,49 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <title>dilla boombap tutorial: demo</title>
+    <title>dilla boombap demo</title>
+    <link href='http://fonts.googleapis.com/css?family=Source+Serif+Pro:400,700' rel='stylesheet' type='text/css'>
     <style>
       body {
-        margin:30px 40px;
-        font-size:140%
+        font-family: 'Source Serif Pro', serif;
+        font-size: 1.5em;
+        line-height: 1.4;
+        color: #444;
+        margin: 0;
+      }
+      .hero {
+        background-color: #4183c4;
+        color: white;
+      }
+      .hero h1 {
+        margin: 0;
+        padding: 30px 40px;
+      }
+      .content {
+        margin: 30px 40px;
+        max-width: 500px;
+      }
+      #loading {
+        font-weight: bold;
       }
     </style>
   </head>
   <body>
-    <h1>dilla boombap tutorial: demo</h1>
-    <ul>
-      <li>learn how to make this at <a href="...">?</a></li>
-      <li>using <a href="https://github.com/adamrenklint/dilla">dilla</a> to schedule Web Audio events</li>
-      <li>this code is also available on <a href="https://github.com/adamrenklint/dilla-boombap-tutorial">GitHub</a></li>
-      <li id="loading">loading sounds...</li>
-      <li>playback position: <span id="position">0.0.00</span></li>
-      <li>by <a href="http://adamrenklint.com">Adam Renklint</a> (berlin, march 2015)</li>
-    </ul>
+    <div class="hero">
+      <h1>dilla boombap demo</h1>
+    </div>
+    <div class="content">
+      <p>A boombap beat made using <a href="https://github.com/adamrenklint/dilla">dilla</a> to schedule rhythmic Web Audio events with precise timing.</p>
+
+      <p><a href="http://adamrenklint.com/making-boombap-beat-with-dilla">Read the tutorial</a> or <a href="https://github.com/adamrenklint/dilla-boombap-demo">check out the code</a>.</p>
+
+      <p>Made by <a href="http://twitter.com/adamrenklint">Adam Renklint</a> in March 2015. Thanks to <a href="https://twitter.com/raymondmayjr">Raymond May Jr</a> for helping out with the bass.</p>
+
+      <p>
+        Playback position: <span id="position">0.0.00</span><br>
+        <span id="loading">Loading sounds...</span>
+      </p>
+    </div>
     <script src="dist/boombap.js"></script>
   </body>
 </html>

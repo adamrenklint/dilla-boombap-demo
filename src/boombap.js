@@ -78,7 +78,7 @@ reverb.connect(audioContext.destination);
 // sources, so we can fade out or stop playback
 var sources = {};
 
-// The most important function, plays or stops a sound buffer
+// The most important function, starts or stops a sound buffer
 function onStep (step) {
 
   if (step.event === 'start') {
