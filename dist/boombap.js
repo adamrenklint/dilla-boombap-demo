@@ -5722,10 +5722,23 @@ var dilla = new Dilla(audioContext, {
 
 // Display playback position
 var position = document.getElementById('position');
+var play = document.getElementById('play');
+var stop = document.getElementById('stop');
 function draw () {
   position.innerText = dilla.position();
+
+  if (dilla.clock._state.playing) {
+    play.className = 'control hidden';
+    stop.className = 'control';
+  }
+  else {
+    play.className = 'control';
+    stop.className = 'control hidden';
+  }
   window.requestAnimationFrame(draw);
 }
+play.addEventListener('click', dilla.start.bind(dilla));
+stop.addEventListener('click', dilla.stop.bind(dilla));
 
 // Object to hold our sound buffers
 var sounds = {};

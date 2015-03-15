@@ -12,6 +12,9 @@
         color: #444;
         margin: 0;
       }
+      .hidden {
+        display: none;
+      }
       .hero {
         background-color: #4183c4;
         color: white;
@@ -24,8 +27,11 @@
         margin: 30px 40px;
         max-width: 500px;
       }
-      #loading {
+      .control {
         font-weight: bold;
+      }
+      .control:hover {
+        cursor: pointer;
       }
     </style>
   </head>
@@ -42,7 +48,9 @@
 
       <p>
         Playback position: <span id="position">0.0.00</span><br>
-        <span id="loading">Loading sounds...</span>
+        <span id="loading" class="control">Loading sounds...</span>
+        <a id="play" class="control hidden">Start playback</a>
+        <a id="stop" class="control hidden">Stop playback</a>
       </p>
     </div>
     <script src="dist/boombap.js"></script>
