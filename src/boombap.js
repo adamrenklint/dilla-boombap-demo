@@ -97,15 +97,15 @@ function onStep (step) {
   if (step.event === 'start') {
     var source = audioContext.createBufferSource();
     source.buffer = sounds[step.id];
-    source.playbackRate.value = step.args[3] || 1;
+    source.playbackRate.value = step.args.rate || 1;
 
     var gainNode = source.gainNode = audioContext.createGain();
-    var gainVolume = step.args[2] || 1;
+    var gainVolume = step.args.gain || 1;
 
     source.connect(gainNode);
     gainNode.connect(compressor);
 
-    if (step.id === 'bass') {
+    if (step.args.duration) {
       source.gainNode.gain.setValueAtTime(0, step.time);
       source.gainNode.gain.linearRampToValueAtTime(gainVolume, step.time + 0.01);  
     }
@@ -114,14 +114,14 @@ function onStep (step) {
     }
    
     source.start(step.time); 
-    sources[step.id + step.args[0]] = source;
+    sources[step.id + step.args.position] = source;
   }
   else if (step.event === 'stop') {
-    var source = sources[step.id + step.args[0]];
+    var source = sources[step.id + step.args.position];
     if (source) {
-      sources[step.id + step.args[0]] = null;
-      if (step.id === 'bass') {
-        var gainVolume = step.args[2] || 1;
+      sources[step.id + step.args.position] = null;
+      if (step.args.duration) {
+        var gainVolume = step.args.gain || 1;
         source.gainNode.gain.setValueAtTime(gainVolume, step.time);
         source.gainNode.gain.linearRampToValueAtTime(0, step.time + 0.01);  
       } else {
@@ -137,12 +137,12 @@ dilla.on('step', onStep);
 // The notes for our kick
 dilla.set('kick', [
   ['1.1.01'],
-  ['1.1.51', null, 0.8],
+  ['1.1.51', { 'gain': 0.8 }],
   ['1.2.88'],
   ['1.3.75'],
-  ['1.4.72', null, 0.7],
-  ['2.1.51', null, 0.7],
-  ['2.3.51', null, 0.8],
+  ['1.4.72', { 'gain': 0.8 }],
+  ['2.1.51', { 'gain': 0.7 }],
+  ['2.3.51', { 'gain': 0.8 }],
   ['2.3.88']
 ]);
 
@@ -154,50 +154,50 @@ dilla.set('snare', [
 ]);
 
 dilla.set('hihat', [
-  ['*.1.01', null, 0.7],
-  ['*.2.01', null, 0.8],
-  ['*.3.01', null, 0.7],
-  ['*.4.01', null, 0.8],
-  ['*.4.53', null, 0.6]
+  ['*.1.01', { 'gain': 0.7 }],
+  ['*.2.01', { 'gain': 0.8 }],
+  ['*.3.01', { 'gain': 0.7 }],
+  ['*.4.01', { 'gain': 0.8 }],
+  ['*.4.53', { 'gain': 0.6 }]
 ]);
 
 dilla.set('plong1', [
-  ['1.1.01', 95]
+  ['1.1.01', { 'duration': 95 }]
 ]);
 
 dilla.set('plong2', [
-  ['1.4.90', 60, 0.4],
-  ['2.1.52', 60, 0.7]
+  ['1.4.90', { 'duration': 60, 'gain': 0.4 }],
+  ['2.1.52', { 'duration': 60, 'gain': 0.7 }]
 ]);
 
 dilla.set('string1', [
-  ['1.3.75', 90, 0.6],
-  ['1.4.52', 90, 0.2],
-  ['2.3.25', 70, 0.6],
-  ['2.4.01', 85, 0.3],
-  ['2.4.75', 85, 0.1]
+  ['1.3.75', { 'duration': 90, 'gain': 0.6 }],
+  ['1.4.52', { 'duration': 90, 'gain': 0.2 }],
+  ['2.3.25', { 'duration': 70, 'gain': 0.6 }],
+  ['2.4.01', { 'duration': 85, 'gain': 0.3 }],
+  ['2.4.75', { 'duration': 85, 'gain': 0.1 }]
 ]);
 
 dilla.set('string2', [
-  ['2.2.50', 70, 0.6]
+  ['2.2.50', { 'duration': 70, 'gain': 0.6 }]
 ]);
 
 dilla.set('string3', [
-  ['1.2.05', 45, 0.6],
-  ['1.2.51', 45, 0.4],
-  ['1.3.05', 45, 0.2],
-  ['1.3.51', 45, 0.05],
-  ['2.2.05', 45, 0.6]
+  ['1.2.05', { 'duration': 45, 'gain': 0.6 }],
+  ['1.2.51', { 'duration': 45, 'gain': 0.4 }],
+  ['1.3.05', { 'duration': 45, 'gain': 0.2 }],
+  ['1.3.51', { 'duration': 45, 'gain': 0.05 }],
+  ['2.2.05', { 'duration': 45, 'gain': 0.6 }]
 ]);
 
 dilla.set('bass', [
-  ['1.1.01', 60, 0.8, 0.55],
-  ['1.2.72', 15, 0.5, 0.55],
-  ['1.3.02', 40, 0.8, 0.55],
-  ['1.4.01', 40, 0.6, 0.64],
-  ['1.4.51', 100, 0.8, 0.74],
-  ['2.3.51', 60, 0.8, 0.46],
-  ['2.4.51', 40, 0.8, 0.52]
+  ['1.1.01', { 'duration': 60, 'gain': 0.8, 'rate': 0.55 }],
+  ['1.2.72', { 'duration': 15, 'gain': 0.5, 'rate': 0.55 }],
+  ['1.3.02', { 'duration': 40, 'gain': 0.8, 'rate': 0.55 }],
+  ['1.4.01', { 'duration': 40, 'gain': 0.6, 'rate': 0.64 }],
+  ['1.4.51', { 'duration': 100, 'gain': 0.8, 'rate': 0.74 }],
+  ['2.3.51', { 'duration': 60, 'gain': 0.8, 'rate': 0.46 }],
+  ['2.4.51', { 'duration': 40, 'gain': 0.8, 'rate': 0.52 }]
 ]);
 
 // Start loading the sounds, sets it all off
