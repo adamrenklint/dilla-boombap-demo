@@ -39,7 +39,7 @@ function loadSound (name, done) {
       sounds[name] = buffer;
       done();
     });
-  }
+  };
   request.send();
 }
 
@@ -76,60 +76,53 @@ compressor.attack.value = 0;
 compressor.release.value = 0.25;
 
 // Add master reverb
-var Reverb = require('soundbank-reverb')
-var reverb = Reverb(audioContext)
+var Reverb = require('soundbank-reverb');
+var reverb = Reverb(audioContext);
 reverb.time = 1;
 reverb.wet.value = 0.1;
 reverb.dry.value = 1;
-reverb.filterType = 'highpass'
-reverb.cutoff.value = 1000 //Hz
+reverb.filterType = 'highpass';
+reverb.cutoff.value = 1000; //Hz
 
 // Connect them to our output
 compressor.connect(reverb);
 reverb.connect(audioContext.destination);
 
-// Object to hold reference to our sound buffer
-// sources, so we can fade out or stop playback
-var sources = {};
-
 // The most important function, starts or stops a sound buffer
 function onStep (step) {
+  if (step.event === 'start') onStart(step);
+  if (step.event === 'stop') onStop(step);
+}
 
-  if (step.event === 'start') {
-    var source = audioContext.createBufferSource();
-    source.buffer = sounds[step.id];
-    source.playbackRate.value = step.args.rate || 1;
-
-    var gainNode = source.gainNode = audioContext.createGain();
-    var gainVolume = step.args.gain || 1;
-
-    source.connect(gainNode);
-    gainNode.connect(compressor);
-
-    if (step.args.duration) {
-      source.gainNode.gain.setValueAtTime(0, step.time);
-      source.gainNode.gain.linearRampToValueAtTime(gainVolume, step.time + 0.01);  
-    }
-    else {
-      gainNode.gain.value = gainVolume;
-    }
-   
-    source.start(step.time); 
-    sources[step.id + step.args.position] = source;
+function onStart (step) {
+  // Create source and assign the sound buffer
+  var source = audioContext.createBufferSource();
+  source.buffer = sounds[step.id];
+  source.playbackRate.value = step.args.rate || 1;
+  // Setup gain and save a reference to it
+  var gainNode = source.gainNode = audioContext.createGain();
+  gainVolume = step.args.gain || 1;
+  // If not oneshot, small fade in attack
+  if (step.args.duration) {
+    source.gainNode.gain.setValueAtTime(0, step.time);
+    source.gainNode.gain.linearRampToValueAtTime(gainVolume, step.time + 0.01);
+  } else {
+    gainNode.gain.value = gainVolume;
   }
-  else if (step.event === 'stop') {
-    var source = sources[step.id + step.args.position];
-    if (source) {
-      sources[step.id + step.args.position] = null;
-      if (step.args.duration) {
-        var gainVolume = step.args.gain || 1;
-        source.gainNode.gain.setValueAtTime(gainVolume, step.time);
-        source.gainNode.gain.linearRampToValueAtTime(0, step.time + 0.01);  
-      } else {
-        source.stop(step.time);  
-      }
-    }
-  }
+  // Hook up the nodes and start playback
+  source.connect(gainNode);
+  gainNode.connect(compressor);
+  source.start(step.time);
+  // Save a reference for use in stop step event
+  step.args.source = source;
+}
+
+function onStop (step) {
+  var source = step.args.source;
+  var gainVolume = step.args.gain || 1;
+  // Small fade out release
+  source.gainNode.gain.setValueAtTime(gainVolume, step.time);
+  source.gainNode.gain.linearRampToValueAtTime(0, step.time + 0.01);
 }
 
 // Attach the onStep callback to the "step" event
