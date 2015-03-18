@@ -1,6 +1,7 @@
 // Set up the dilla object
 var Dilla = require('dilla');
-var audioContext = new AudioContext();
+var Context = window.AudioContext || window.webkitAudioContext;
+var audioContext = new Context();
 var dilla = new Dilla(audioContext, {
   'tempo': 88
 });
