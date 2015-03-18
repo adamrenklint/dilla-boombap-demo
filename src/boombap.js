@@ -89,10 +89,10 @@ compressor.connect(reverb);
 reverb.connect(audioContext.destination);
 
 // The most important function, starts or stops a sound buffer
-function onStep (step) {
+dilla.on('step', function onStep (step) {
   if (step.event === 'start') onStart(step);
   if (step.event === 'stop') onStop(step);
-}
+});
 
 function onStart (step) {
   // Create source and assign the sound buffer
@@ -101,7 +101,7 @@ function onStart (step) {
   source.playbackRate.value = step.args.rate || 1;
   // Setup gain and save a reference to it
   var gainNode = source.gainNode = audioContext.createGain();
-  gainVolume = step.args.gain || 1;
+  var gainVolume = step.args.gain || 1;
   // If not oneshot, small fade in attack
   if (step.args.duration) {
     source.gainNode.gain.setValueAtTime(0, step.time);
@@ -124,9 +124,6 @@ function onStop (step) {
   source.gainNode.gain.setValueAtTime(gainVolume, step.time);
   source.gainNode.gain.linearRampToValueAtTime(0, step.time + 0.01);
 }
-
-// Attach the onStep callback to the "step" event
-dilla.on('step', onStep);
 
 // The notes for our kick
 dilla.set('kick', [
