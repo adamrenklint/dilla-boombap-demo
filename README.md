@@ -1,6 +1,6 @@
 # dilla boombap demo
 
-A A minimalist boombap beat made using [dilla](https://www.npmjs.com/package/dilla) and Web Audio to schedule notes with precise rhythmic timing.
+A minimalist boombap beat made using [dilla](https://www.npmjs.com/package/dilla) and Web Audio to schedule notes with precise rhythmic timing.
 
 [Read the tutorial](http://adamrenklint.com/making-boombap-beat-with-dilla) or [check out the demo](http://adamrenklint.github.io/dilla-boombap-demo).
 
