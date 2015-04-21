@@ -10,6 +10,7 @@ Made by [Adam Renklint](http://adamrenklint.com) in March 2015. Thanks to [Raymo
 
 - **1.0.0**: public release
 - **1.0.1**: fixed typos, updated theme
+- **1.0.2**: add Google Analytics
 
 ## License
 
